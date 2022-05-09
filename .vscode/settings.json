@@ -1,0 +1,12 @@
+{
+    "eslint.packageManager": "yarn",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": true
+    },
+    "eslint.format.enable": true,
+    "eslint.validate": [
+      "typescript",
+      "javascript",
+      "javascriptreact",
+    ],
+  }
