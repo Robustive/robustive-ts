@@ -98,7 +98,7 @@ boundary | constant  | an alias of null.
 const signIn = (id: string|null, password: string|null) => {
     let subscription: Subscription|null = null;
     subscription = new SignInUsecase({ scene: SignIn.userStartsSignInProcess, id, password})
-        .interactedBy(new Anyone())
+        .interactedBy(new Nobody())
         .subscribe({
             next: (performedScenario) => {
                 const lastContext = performedScenario.slice(-1)[0];

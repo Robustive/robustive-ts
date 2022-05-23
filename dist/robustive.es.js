@@ -10,8 +10,9 @@ class BaseActor {
     this.user = user;
   }
 }
-class Anyone extends BaseActor {
+class Nobody extends BaseActor {
 }
+const isNobody = (actor) => actor.constructor === Nobody;
 /*! *****************************************************************************
 Copyright (c) Microsoft Corporation.
 
@@ -1267,15 +1268,15 @@ function mergeMap(project, resultSelector, concurrent) {
 }
 const boundary = null;
 class Usecase {
-  constructor(initialContext) {
+  constructor(initialSceneContext) {
     __publicField(this, "context");
-    this.context = initialContext;
+    this.context = initialSceneContext;
   }
-  instantiate(nextContext) {
-    return new this.constructor(nextContext);
+  instantiate(nextSceneContext) {
+    return new this.constructor(nextSceneContext);
   }
-  just(nextContext) {
-    return of(this.instantiate(nextContext));
+  just(nextSceneContext) {
+    return of(this.instantiate(nextSceneContext));
   }
   authorize(actor) {
     throw new AuthorizingIsNotDefinedForThisActor(this, actor);
@@ -1287,8 +1288,8 @@ class Usecase {
       if (!observable2) {
         return of(scenario2);
       }
-      return observable2.pipe(mergeMap((nextContext) => {
-        scenario2.push(nextContext);
+      return observable2.pipe(mergeMap((nextSceneContext) => {
+        scenario2.push(nextSceneContext);
         return recursive(scenario2);
       }));
     };
@@ -1320,4 +1321,4 @@ class AuthorizingIsNotDefinedForThisActor extends Error {
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
-export { Anyone, AuthorizingIsNotDefinedForThisActor, BaseActor, Usecase, UserNotAuthorizedToInteractIn, boundary };
+export { AuthorizingIsNotDefinedForThisActor, BaseActor, Nobody, Usecase, UserNotAuthorizedToInteractIn, boundary, isNobody };

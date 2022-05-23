@@ -15,9 +15,9 @@ export interface IUsecase<Context> {
 export declare abstract class Usecase<Context> implements IUsecase<Context> {
     context: Context;
     abstract next(): Observable<this> | Boundary;
-    constructor(initialContext: Context);
-    protected instantiate(nextContext: Context): this;
-    just(nextContext: Context): Observable<this>;
+    constructor(initialSceneContext: Context);
+    protected instantiate(nextSceneContext: Context): this;
+    just(nextSceneContext: Context): Observable<this>;
     authorize<T extends Actor<T>>(actor: T): boolean;
     interactedBy<T extends Actor<T>>(actor: T, from?: Context | null): Observable<Context[]>;
 }

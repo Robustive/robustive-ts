@@ -11,9 +11,9 @@ export abstract class BaseActor<User> implements IActor<User> {
     }
 }
 
-export class Anyone extends BaseActor<null> {}
+export class Nobody extends BaseActor<null> {}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const isAnyone = (actor: any): actor is Anyone => actor.constructor === Anyone;
+export const isNobody = (actor: any): actor is Nobody => actor.constructor === Nobody;
 
 export type Actor<T> = BaseActor<UserType<T>>;

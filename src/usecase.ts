@@ -1,6 +1,6 @@
 import { Observable, of, throwError } from "rxjs";
 import { mergeMap, map } from "rxjs/operators";
-import { Actor, BaseActor, isAnyone } from "./actor";
+import { Actor, BaseActor, isNobody } from "./actor";
 
 export type Boundary = null;
 export const boundary: Boundary = null;
@@ -11,7 +11,7 @@ export type Empty = {};
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type UsecaseScenario<T extends Record<keyof any, Empty>> = {
     [K in keyof T]: Record<"scene", K> & T[K];
-  }[keyof T];
+}[keyof T];
 
 export interface IUsecase<Context> {
     context: Context;
@@ -24,17 +24,17 @@ export abstract class Usecase<Context> implements IUsecase<Context> {
     context: Context;
     abstract next(): Observable<this>|Boundary;
 
-    constructor(initialContext: Context) {
-        this.context = initialContext;
+    constructor(initialSceneContext: Context) {
+        this.context = initialSceneContext;
     }
 
-    protected instantiate(nextContext: Context): this {
+    protected instantiate(nextSceneContext: Context): this {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return new (this.constructor as any)(nextContext);
+        return new (this.constructor as any)(nextSceneContext);
     }
 
-    just(nextContext: Context): Observable<this> {
-        return of(this.instantiate(nextContext));
+    just(nextSceneContext: Context): Observable<this> {
+        return of(this.instantiate(nextSceneContext));
     }
 
     authorize<T extends Actor<T>>(actor: T): boolean {
@@ -53,8 +53,8 @@ export abstract class Usecase<Context> implements IUsecase<Context> {
 
             return observable
                 .pipe(
-                    mergeMap((nextContext: this) => {
-                        scenario.push(nextContext);
+                    mergeMap((nextSceneContext: this) => {
+                        scenario.push(nextSceneContext);
                         return recursive(scenario);
                     })
                 );
