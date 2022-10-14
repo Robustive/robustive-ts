@@ -1,4 +1,4 @@
-import { Observable, of, throwError } from "rxjs";
+import { Observable, of, tap, throwError } from "rxjs";
 import { mergeMap, map } from "rxjs/operators";
 import { Actor, BaseActor, isNobody } from "./actor";
 
@@ -47,7 +47,7 @@ export abstract class Usecase<Context> implements IUsecase<Context> {
             const lastScene = scenario.slice(-1)[0];
             const observable = lastScene.next();
 
-            if (!observable) {
+            if (!observable) { // exit criteria
                 return of(scenario);
             }
 
@@ -78,6 +78,7 @@ export abstract class Usecase<Context> implements IUsecase<Context> {
                     const performedScenario = scenes.map(scene => scene.context);
                     return performedScenario;
                 })
+                , tap(scenario => console.log("scenario:", scenario))
             );
     }
 }

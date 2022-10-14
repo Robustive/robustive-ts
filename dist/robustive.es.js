@@ -454,6 +454,22 @@ function reportUnhandledError(err) {
 }
 function noop() {
 }
+var COMPLETE_NOTIFICATION = function() {
+  return createNotification("C", void 0, void 0);
+}();
+function errorNotification(error) {
+  return createNotification("E", void 0, error);
+}
+function nextNotification(value) {
+  return createNotification("N", value, void 0);
+}
+function createNotification(kind, value, error) {
+  return {
+    kind,
+    value,
+    error
+  };
+}
 var context = null;
 function errorContext(cb) {
   if (config.useDeprecatedSynchronousErrorHandling) {
@@ -492,24 +508,24 @@ var Subscriber = function(_super) {
     return new SafeSubscriber(next, error, complete);
   };
   Subscriber2.prototype.next = function(value) {
-    if (this.isStopped)
-      ;
-    else {
+    if (this.isStopped) {
+      handleStoppedNotification(nextNotification(value), this);
+    } else {
       this._next(value);
     }
   };
   Subscriber2.prototype.error = function(err) {
-    if (this.isStopped)
-      ;
-    else {
+    if (this.isStopped) {
+      handleStoppedNotification(errorNotification(err), this);
+    } else {
       this.isStopped = true;
       this._error(err);
     }
   };
   Subscriber2.prototype.complete = function() {
-    if (this.isStopped)
-      ;
-    else {
+    if (this.isStopped) {
+      handleStoppedNotification(COMPLETE_NOTIFICATION, this);
+    } else {
       this.isStopped = true;
       this._complete();
     }
@@ -621,6 +637,12 @@ function handleUnhandledError(error) {
 }
 function defaultErrorHandler(err) {
   throw err;
+}
+function handleStoppedNotification(notification, subscriber) {
+  var onStoppedNotification = config.onStoppedNotification;
+  onStoppedNotification && timeoutProvider.setTimeout(function() {
+    return onStoppedNotification(notification, subscriber);
+  });
 }
 var EMPTY_OBSERVER = {
   closed: true,
@@ -1266,6 +1288,35 @@ function mergeMap(project, resultSelector, concurrent) {
     return mergeInternals(source, subscriber, project, concurrent);
   });
 }
+function tap(observerOrNext, error, complete) {
+  var tapObserver = isFunction(observerOrNext) || error || complete ? { next: observerOrNext, error, complete } : observerOrNext;
+  return tapObserver ? operate(function(source, subscriber) {
+    var _a;
+    (_a = tapObserver.subscribe) === null || _a === void 0 ? void 0 : _a.call(tapObserver);
+    var isUnsub = true;
+    source.subscribe(createOperatorSubscriber(subscriber, function(value) {
+      var _a2;
+      (_a2 = tapObserver.next) === null || _a2 === void 0 ? void 0 : _a2.call(tapObserver, value);
+      subscriber.next(value);
+    }, function() {
+      var _a2;
+      isUnsub = false;
+      (_a2 = tapObserver.complete) === null || _a2 === void 0 ? void 0 : _a2.call(tapObserver);
+      subscriber.complete();
+    }, function(err) {
+      var _a2;
+      isUnsub = false;
+      (_a2 = tapObserver.error) === null || _a2 === void 0 ? void 0 : _a2.call(tapObserver, err);
+      subscriber.error(err);
+    }, function() {
+      var _a2, _b;
+      if (isUnsub) {
+        (_a2 = tapObserver.unsubscribe) === null || _a2 === void 0 ? void 0 : _a2.call(tapObserver);
+      }
+      (_b = tapObserver.finalize) === null || _b === void 0 ? void 0 : _b.call(tapObserver);
+    }));
+  }) : identity;
+}
 const boundary = null;
 class Usecase {
   constructor(initialSceneContext) {
@@ -1306,7 +1357,7 @@ class Usecase {
     return recursive(scenario).pipe(map((scenes) => {
       const performedScenario = scenes.map((scene) => scene.context);
       return performedScenario;
-    }));
+    }), tap((scenario2) => console.log("scenario:", scenario2)));
   }
 }
 class UserNotAuthorizedToInteractIn extends Error {
