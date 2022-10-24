@@ -1333,6 +1333,7 @@ class Usecase {
     throw new AuthorizingIsNotDefinedForThisActor(this, actor);
   }
   interactedBy(actor, from2 = null) {
+    const startAt = new Date();
     const recursive = (scenario2) => {
       const lastScene = scenario2.slice(-1)[0];
       const observable2 = lastScene.next();
@@ -1357,7 +1358,10 @@ class Usecase {
     return recursive(scenario).pipe(map((scenes) => {
       const performedScenario = scenes.map((scene) => scene.context);
       return performedScenario;
-    }), tap((scenario2) => console.log("scenario:", scenario2)));
+    }), tap((scenario2) => {
+      const elapsedTime = new Date().getTime() - startAt.getTime();
+      console.info(`${this.constructor.name} takes ${elapsedTime} ms.`, scenario2);
+    }));
   }
 }
 class UserNotAuthorizedToInteractIn extends Error {

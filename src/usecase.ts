@@ -43,6 +43,8 @@ export abstract class Usecase<Context> implements IUsecase<Context> {
 
     interactedBy<T extends Actor<T>>(actor: T, from: Context|null = null): Observable<Context[]> {
 
+        const startAt = new Date();
+
         const recursive = (scenario: this[]): Observable<this[]> => {
             const lastScene = scenario.slice(-1)[0];
             const observable = lastScene.next();
@@ -78,7 +80,10 @@ export abstract class Usecase<Context> implements IUsecase<Context> {
                     const performedScenario = scenes.map(scene => scene.context);
                     return performedScenario;
                 })
-                , tap(scenario => console.log("scenario:", scenario))
+                , tap(scenario => {
+                    const elapsedTime = (new Date().getTime() - startAt.getTime());
+                    console.info(`${ this.constructor.name } takes ${elapsedTime } ms.`, scenario);
+                })
             );
     }
 }
