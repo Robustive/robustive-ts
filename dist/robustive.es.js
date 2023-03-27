@@ -1346,7 +1346,7 @@ class Usecase {
       }));
     };
     if (!this.authorize(actor)) {
-      const err = new UserNotAuthorizedToInteractIn(this.constructor.name);
+      const err = new ActorNotAuthorizedToInteractIn(actor.constructor.name, this.constructor.name);
       return throwError(() => err);
     }
     const scenario = [];
@@ -1364,9 +1364,9 @@ class Usecase {
     }));
   }
 }
-class UserNotAuthorizedToInteractIn extends Error {
-  constructor(message) {
-    super(`User not authorized to interact in ${message}`);
+class ActorNotAuthorizedToInteractIn extends Error {
+  constructor(actor, usecase) {
+    super(`The actor "${actor}" is not authorized to interact in ${usecase}`);
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
@@ -1376,4 +1376,4 @@ class AuthorizingIsNotDefinedForThisActor extends Error {
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
-export { AuthorizingIsNotDefinedForThisActor, BaseActor, Nobody, Usecase, UserNotAuthorizedToInteractIn, boundary, isNobody };
+export { ActorNotAuthorizedToInteractIn, AuthorizingIsNotDefinedForThisActor, BaseActor, Nobody, Usecase, boundary, isNobody };

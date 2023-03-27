@@ -14,31 +14,60 @@ $ yarn add robustive-ts
 ## Describe Usecases as codes.
 
 ```typescript
-export const enum SignIn {
-    /* Basics */
-    userStartsSignInProcess
-    , serviceValidateInputs
-    , onSuccessInValidatingThenServiceTrySigningIn
-    , onSuccessThenServicePresentsHomeView
+export const SignIn = {
+    /* Basic Courses */
+    userStartsSignInProcess : "ユーザはサインインを開始する"
+    , serviceValidateInputs : "サービスは入力項目に問題がないかを確認する"
+    , onSuccessInValidatingThenServiceTrySigningIn : "入力項目に問題がない場合_サービスはサインインを試行する"
 
-    /* Alternatives */
-    , onFailureInValidatingThenServicePresentsError
-    , onFailureThenServicePresentsError
-}
+    /* Alternative Courses */
+    // nothing
+
+    /* Boundaries */
+    , goals : {
+        onSuccessInSigningInThenServicePresentsHomeView : "サインインに成功した場合_サービスはホーム画面を表示する"
+        , onFailureInValidatingThenServicePresentsError : "入力項目に問題がある場合_サービスはエラーを表示する"
+        , onFailureInSigningInThenServicePresentsError : "サインインに失敗した場合_サービスはエラーを表示する"
+    }
+} as const;
+
+type SignIn = typeof SignIn[keyof typeof SignIn];
 ```
 
 ```typescript
-export type SignInContext = { scene: SignIn.userStartsSignInProcess; id: string|null; password: string|null; }
-    | { scene: SignIn.serviceValidateInputs; id: string|null; password: string|null; }
-    | { scene: SignIn.onSuccessInValidatingThenServiceTrySigningIn; id: string; password: string; }
-    | { scene: SignIn.onSuccessThenServicePresentsHomeView; user: User; }
-    | { scene: SignIn.onFailureInValidatingThenServicePresentsError; result: SignInValidationResult; }
-    | { scene: SignIn.onFailureThenServicePresentsError; error: Error; }
-;
+export type SignInGoal = UsecaseScenario<{
+    [SignIn.goals.onSuccessInSigningInThenServicePresentsHomeView] : { user: User; };
+    [SignIn.goals.onFailureInValidatingThenServicePresentsError] : { result: SignInValidationResult; };
+    [SignIn.goals.onFailureInSigningInThenServicePresentsError] : { error: Error; };
+}>;
+
+export type SignInScenario = UsecaseScenario<{
+    [SignIn.userStartsSignInProcess] : { id: string|null; password: string|null; };
+    [SignIn.serviceValidateInputs] : { id: string|null; password: string|null; };
+    [SignIn.onSuccessInValidatingThenServiceTrySigningIn] : { id: string; password: string; };
+}> | SignInGoal;
 ```
 
 ```typescript
-export class SignInUsecase extends Usecase<SignInContext> {
+export type SignInContext = UsecaseContext<SignInScenario>;
+```
+
+This is same as below.
+
+```typescript
+type SignInScenario = {
+     { scene: SignIn.userStartsSignInProces, id: string|null; password: string|null; }
+    , { scene: SignIn.serviceValidateInputs, id: string|null; password: string|null; }
+    , { scene: SignIn.onSuccessInValidatingThenServiceTrySigningIn, id: string; password: string; }
+    , { scene: SignIn.goals.onSuccessInSigningInThenServicePresentsHomeView, user: User; }
+    , { scene: SignIn.goals.onFailureInValidatingThenServicePresentsError, result: SignInValidationResult; }
+    , { scene: SignIn.goals.onFailureInSigningInThenServicePresentsError, error: Error; }
+};
+```
+
+
+```typescript
+export class SignInUsecase extends Usecase<SignInScenario> {
 
     override next(): Observable<this>|Boundary {
         switch (this.context.scene) {
@@ -51,12 +80,8 @@ export class SignInUsecase extends Usecase<SignInContext> {
         case SignIn.onSuccessInValidatingThenServiceTrySigningIn : {
             return this.signIn(this.context.id, this.context.password);
         }
-        case SignIn.onSuccessThenServicePresentsHomeView: {
-            return boundary;
-        }
-        case SignIn.onFailureInValidatingThenServicePresentsError: {
-            return boundary;
-        }
+        case SignIn.onSuccessThenServicePresentsHomeView:
+        case SignIn.onFailureInValidatingThenServicePresentsError:
         case SignIn.onFailureThenServicePresentsError: {
             return boundary;
         }
@@ -147,7 +172,7 @@ const signIn = (id: string|null, password: string|null) => {
                 }
             }
             , error: (e) => {
-                if (e instanceof UserNotAuthorizedToInteractIn) {
+                if (e instanceof ActorNotAuthorizedToInteractIn) {
                     console.error(e);
                 } else {
                     console.error(e);

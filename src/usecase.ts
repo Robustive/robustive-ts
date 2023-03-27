@@ -1,6 +1,6 @@
 import { Observable, of, tap, throwError } from "rxjs";
 import { mergeMap, map } from "rxjs/operators";
-import { Actor, BaseActor, isNobody } from "./actor";
+import { Actor, BaseActor } from "./actor";
 
 export type Boundary = null;
 export const boundary: Boundary = null;
@@ -13,14 +13,17 @@ export type UsecaseScenario<T extends Record<keyof any, Empty>> = {
     [K in keyof T]: Record<"scene", K> & T[K];
 }[keyof T];
 
-export interface IUsecase<Context> {
+export interface IContext {
+    scene: string;
+}
+export interface IUsecase<Context extends IContext> {
     context: Context;
     next(): Observable<this>|Boundary;
     authorize<T extends Actor<T>>(actor: T): boolean;
     interactedBy<T extends Actor<T>>(actor: T, from: Context|null): Observable<Context[]>
 }
 
-export abstract class Usecase<Context> implements IUsecase<Context> {
+export abstract class Usecase<Context extends IContext> implements IUsecase<Context> {
     context: Context;
     abstract next(): Observable<this>|Boundary;
 
@@ -63,7 +66,7 @@ export abstract class Usecase<Context> implements IUsecase<Context> {
         };
 
         if (!this.authorize(actor)) {
-            const err = new UserNotAuthorizedToInteractIn(this.constructor.name);
+            const err = new ActorNotAuthorizedToInteractIn(actor.constructor.name, this.constructor.name);
             return throwError(() => err);
         }
         const scenario: this[] = [];
@@ -88,14 +91,14 @@ export abstract class Usecase<Context> implements IUsecase<Context> {
     }
 }
 
-export class UserNotAuthorizedToInteractIn extends Error {
-    constructor(message: string) {
-        super(`User not authorized to interact in ${ message }`);
+export class ActorNotAuthorizedToInteractIn extends Error {
+    constructor(actor: string, usecase: string) {
+        super(`The actor "${ actor }" is not authorized to interact in ${ usecase }`);
         Object.setPrototypeOf(this, new.target.prototype);
     }
 }
 
-export class AuthorizingIsNotDefinedForThisActor<Context, T extends Usecase<Context>, User, U extends BaseActor<User>> extends Error {
+export class AuthorizingIsNotDefinedForThisActor<C extends IContext, T extends Usecase<C>, User, U extends BaseActor<User>> extends Error {
     constructor(usecase: T, actor: U) {
         super(`Authorizing ${ actor.constructor.name } to ${ usecase.constructor.name } is not defined. Please override authorize() at ${ usecase.constructor.name }.`);
         Object.setPrototypeOf(this, new.target.prototype);

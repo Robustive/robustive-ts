@@ -1,9 +1,9 @@
 export interface IActor<User> {
     user: User | null;
 }
-export declare type UserType<Actor> = Actor extends {
-    user: infer T;
-} ? T : never;
+export declare type UserType<T> = T extends {
+    user: infer U;
+} ? U : never;
 export declare abstract class BaseActor<User> implements IActor<User> {
     user: User | null;
     constructor(user?: User | null);
