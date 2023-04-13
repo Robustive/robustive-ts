@@ -1,4 +1,4 @@
-import { Observable, of, tap, throwError } from "rxjs";
+import { Observable, Observer, of, Subscription, tap, throwError } from "rxjs";
 import { mergeMap, map } from "rxjs/operators";
 import { Actor, BaseActor } from "./actor";
 
@@ -20,7 +20,8 @@ export interface IUsecase<Context extends IContext> {
     context: Context;
     next(): Observable<this>|Boundary;
     authorize<T extends Actor<T>>(actor: T): boolean;
-    interactedBy<T extends Actor<T>>(actor: T, from: Context|null): Observable<Context[]>
+    interactedBy<T extends Actor<T>>(actor: T): Observable<Context[]>
+    interactedBy<T extends Actor<T>>(actor: T, observer: Partial<Observer<[Context, Context[]]>>): Subscription
 }
 
 export abstract class Usecase<Context extends IContext> implements IUsecase<Context> {
@@ -44,50 +45,66 @@ export abstract class Usecase<Context extends IContext> implements IUsecase<Cont
         throw new AuthorizingIsNotDefinedForThisActor(this, actor);
     }
 
-    interactedBy<T extends Actor<T>>(actor: T, from: Context|null = null): Observable<Context[]> {
 
-        const startAt = new Date();
+    interactedBy<T extends Actor<T>>(actor: T): Observable<Context[]>
+    interactedBy<T extends Actor<T>>(actor: T, observer: Partial<Observer<[Context, Context[]]>>): Subscription
 
-        const recursive = (scenario: this[]): Observable<this[]> => {
-            const lastScene = scenario.slice(-1)[0];
-            const observable = lastScene.next();
+    // overload
+    interactedBy<T extends Actor<T>>(actor: T, observer?: Partial<Observer<[Context, Context[]]>> | null): Observable<Context[]> | Subscription {
+        if (observer) {
+            let subscription: Subscription | null = null;
+            subscription = this.interactedBy(actor)
+                .subscribe({ 
+                    next: (performedScenario: Context[]) => {
+                        const lastSceneContext = performedScenario.slice(-1)[0];
+                        observer.next?.([lastSceneContext, performedScenario]);
+                    }
+                    , error: observer.error
+                    , complete: () => { 
+                        subscription?.unsubscribe();
+                        observer.complete?.(); 
+                    } 
+                } as Partial<Observer<Context[]>>);
+            return subscription;
 
-            if (!observable) { // exit criteria
-                return of(scenario);
+        } else {
+            const startAt = new Date();
+
+            const recursive = (scenario: this[]): Observable<this[]> => {
+                const lastScene = scenario.slice(-1)[0];
+                const observable = lastScene.next();
+    
+                if (!observable) { // exit criteria
+                    return of(scenario);
+                }
+    
+                return observable
+                    .pipe(
+                        mergeMap((nextSceneContext: this) => {
+                            scenario.push(nextSceneContext);
+                            return recursive(scenario);
+                        })
+                    );
+            };
+    
+            if (!this.authorize(actor)) {
+                const err = new ActorNotAuthorizedToInteractIn(actor.constructor.name, this.constructor.name);
+                return throwError(() => err);
             }
-
-            return observable
+            const scenario: this[] = [this];
+    
+            return recursive(scenario)
                 .pipe(
-                    mergeMap((nextSceneContext: this) => {
-                        scenario.push(nextSceneContext);
-                        return recursive(scenario);
+                    map((scenes: this[]) => {
+                        const performedScenario = scenes.map(scene => scene.context);
+                        return performedScenario;
+                    })
+                    , tap(scenario => {
+                        const elapsedTime = (new Date().getTime() - startAt.getTime());
+                        console.info(`${ this.constructor.name } takes ${elapsedTime } ms.`, scenario);
                     })
                 );
-        };
-
-        if (!this.authorize(actor)) {
-            const err = new ActorNotAuthorizedToInteractIn(actor.constructor.name, this.constructor.name);
-            return throwError(() => err);
         }
-        const scenario: this[] = [];
-
-        if (from !== null) {
-            scenario.push(this.instantiate(from));
-        } else {
-            scenario.push(this);
-        }
-
-        return recursive(scenario)
-            .pipe(
-                map((scenes: this[]) => {
-                    const performedScenario = scenes.map(scene => scene.context);
-                    return performedScenario;
-                })
-                , tap(scenario => {
-                    const elapsedTime = (new Date().getTime() - startAt.getTime());
-                    console.info(`${ this.constructor.name } takes ${elapsedTime } ms.`, scenario);
-                })
-            );
     }
 }
 

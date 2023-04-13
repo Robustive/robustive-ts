@@ -1332,36 +1332,49 @@ class Usecase {
   authorize(actor) {
     throw new AuthorizingIsNotDefinedForThisActor(this, actor);
   }
-  interactedBy(actor, from2 = null) {
-    const startAt = new Date();
-    const recursive = (scenario2) => {
-      const lastScene = scenario2.slice(-1)[0];
-      const observable2 = lastScene.next();
-      if (!observable2) {
-        return of(scenario2);
-      }
-      return observable2.pipe(mergeMap((nextSceneContext) => {
-        scenario2.push(nextSceneContext);
-        return recursive(scenario2);
-      }));
-    };
-    if (!this.authorize(actor)) {
-      const err = new ActorNotAuthorizedToInteractIn(actor.constructor.name, this.constructor.name);
-      return throwError(() => err);
-    }
-    const scenario = [];
-    if (from2 !== null) {
-      scenario.push(this.instantiate(from2));
+  interactedBy(actor, observer) {
+    if (observer) {
+      let subscription = null;
+      subscription = this.interactedBy(actor).subscribe({
+        next: (performedScenario) => {
+          var _a;
+          const lastSceneContext = performedScenario.slice(-1)[0];
+          (_a = observer.next) == null ? void 0 : _a.call(observer, [lastSceneContext, performedScenario]);
+        },
+        error: observer.error,
+        complete: () => {
+          var _a;
+          subscription == null ? void 0 : subscription.unsubscribe();
+          (_a = observer.complete) == null ? void 0 : _a.call(observer);
+        }
+      });
+      return subscription;
     } else {
-      scenario.push(this);
+      const startAt = new Date();
+      const recursive = (scenario2) => {
+        const lastScene = scenario2.slice(-1)[0];
+        const observable2 = lastScene.next();
+        if (!observable2) {
+          return of(scenario2);
+        }
+        return observable2.pipe(mergeMap((nextSceneContext) => {
+          scenario2.push(nextSceneContext);
+          return recursive(scenario2);
+        }));
+      };
+      if (!this.authorize(actor)) {
+        const err = new ActorNotAuthorizedToInteractIn(actor.constructor.name, this.constructor.name);
+        return throwError(() => err);
+      }
+      const scenario = [this];
+      return recursive(scenario).pipe(map((scenes) => {
+        const performedScenario = scenes.map((scene) => scene.context);
+        return performedScenario;
+      }), tap((scenario2) => {
+        const elapsedTime = new Date().getTime() - startAt.getTime();
+        console.info(`${this.constructor.name} takes ${elapsedTime} ms.`, scenario2);
+      }));
     }
-    return recursive(scenario).pipe(map((scenes) => {
-      const performedScenario = scenes.map((scene) => scene.context);
-      return performedScenario;
-    }), tap((scenario2) => {
-      const elapsedTime = new Date().getTime() - startAt.getTime();
-      console.info(`${this.constructor.name} takes ${elapsedTime} ms.`, scenario2);
-    }));
   }
 }
 class ActorNotAuthorizedToInteractIn extends Error {
