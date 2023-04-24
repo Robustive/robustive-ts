@@ -9,7 +9,7 @@ export const boundary: Boundary = null;
 export type Empty = {};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type Scenes<T extends Record<keyof any, Empty>> = {
+export type ContextualizedScenes<T extends Record<keyof any, Empty>> = {
     [K in keyof T]: Record<"scene", K> & T[K];
 }[keyof T];
 
