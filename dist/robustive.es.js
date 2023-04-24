@@ -1341,7 +1341,11 @@ class Usecase {
           const lastSceneContext = performedScenario.slice(-1)[0];
           (_a = observer.next) == null ? void 0 : _a.call(observer, [lastSceneContext, performedScenario]);
         },
-        error: observer.error,
+        error: (err) => {
+          var _a;
+          console.error(err);
+          (_a = observer.error) == null ? void 0 : _a.call(observer, err);
+        },
         complete: () => {
           var _a;
           subscription == null ? void 0 : subscription.unsubscribe();

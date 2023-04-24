@@ -9,7 +9,7 @@ export const boundary: Boundary = null;
 export type Empty = {};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type UsecaseScenario<T extends Record<keyof any, Empty>> = {
+export type Scenes<T extends Record<keyof any, Empty>> = {
     [K in keyof T]: Record<"scene", K> & T[K];
 }[keyof T];
 
@@ -59,7 +59,10 @@ export abstract class Usecase<Context extends IContext> implements IUsecase<Cont
                         const lastSceneContext = performedScenario.slice(-1)[0];
                         observer.next?.([lastSceneContext, performedScenario]);
                     }
-                    , error: observer.error
+                    , error: (err) => {
+                        console.error(err);
+                        observer.error?.(err);
+                    }
                     , complete: () => { 
                         subscription?.unsubscribe();
                         observer.complete?.(); 

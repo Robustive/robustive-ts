@@ -3,7 +3,7 @@ import { Actor, BaseActor } from "./actor";
 export declare type Boundary = null;
 export declare const boundary: Boundary;
 export declare type Empty = {};
-export declare type UsecaseScenario<T extends Record<keyof any, Empty>> = {
+export declare type Scenes<T extends Record<keyof any, Empty>> = {
     [K in keyof T]: Record<"scene", K> & T[K];
 }[keyof T];
 export interface IContext {
