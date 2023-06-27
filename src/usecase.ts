@@ -8,36 +8,37 @@ export const boundary: Boundary = null;
 // eslint-disable-next-line @typescript-eslint/ban-types
 export type Empty = {};
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type ContextualizedScenes<T extends Record<keyof any, object>> = {
-    [K in keyof T]: Record<"scene", K> & T[K];
-}[keyof T];
+type SCENE = "scene";
+export type AssociatedValues = Record<string, object>;
 
-export interface IContext {
-    scene: string;
-}
-export interface IUsecase<Context extends IContext> {
-    context: Context;
+// 識別共有体型(Discriminated Union)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type Context<T> = T extends AssociatedValues ? {
+    [K in keyof T]: (Record<SCENE, K> & T[K]);
+}[keyof T] : never;
+
+export interface IUsecase<C extends Context<AssociatedValues>> {
+    context: C;
     next(): Observable<this>|Boundary;
     authorize<T extends Actor<T>>(actor: T): boolean;
-    interactedBy<T extends Actor<T>>(actor: T): Observable<Context[]>
-    interactedBy<T extends Actor<T>>(actor: T, observer: Partial<Observer<[Context, Context[]]>>): Subscription
+    interactedBy<T extends Actor<T>>(actor: T): Observable<C[]>
+    interactedBy<T extends Actor<T>>(actor: T, observer: Partial<Observer<[C, C[]]>>): Subscription
 }
 
-export abstract class Usecase<Context extends IContext> implements IUsecase<Context> {
-    context: Context;
+export abstract class Usecase<C extends Context<AssociatedValues>> implements IUsecase<C> {
+    context: C;
     abstract next(): Observable<this>|Boundary;
 
-    constructor(initialSceneContext: Context) {
+    constructor(initialSceneContext: C) {
         this.context = initialSceneContext;
     }
 
-    protected instantiate(nextSceneContext: Context): this {
+    protected instantiate(nextSceneContext: C): this {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return new (this.constructor as any)(nextSceneContext);
     }
 
-    just(nextSceneContext: Context): Observable<this> {
+    just(nextSceneContext: C): Observable<this> {
         return of(this.instantiate(nextSceneContext));
     }
 
@@ -46,16 +47,16 @@ export abstract class Usecase<Context extends IContext> implements IUsecase<Cont
     }
 
 
-    interactedBy<T extends Actor<T>>(actor: T): Observable<Context[]>
-    interactedBy<T extends Actor<T>>(actor: T, observer: Partial<Observer<[Context, Context[]]>>): Subscription
+    interactedBy<T extends Actor<T>>(actor: T): Observable<C[]>
+    interactedBy<T extends Actor<T>>(actor: T, observer: Partial<Observer<[C, C[]]>>): Subscription
 
     // overload
-    interactedBy<T extends Actor<T>>(actor: T, observer?: Partial<Observer<[Context, Context[]]>> | null): Observable<Context[]> | Subscription {
+    interactedBy<T extends Actor<T>>(actor: T, observer?: Partial<Observer<[C, C[]]>> | null): Observable<C[]> | Subscription {
         if (observer) {
             let subscription: Subscription | null = null;
             subscription = this.interactedBy(actor)
                 .subscribe({ 
-                    next: (performedScenario: Context[]) => {
+                    next: (performedScenario: C[]) => {
                         const lastSceneContext = performedScenario.slice(-1)[0];
                         observer.next?.([lastSceneContext, performedScenario]);
                     }
@@ -67,7 +68,7 @@ export abstract class Usecase<Context extends IContext> implements IUsecase<Cont
                         subscription?.unsubscribe();
                         observer.complete?.(); 
                     } 
-                } as Partial<Observer<Context[]>>);
+                } as Partial<Observer<C[]>>);
             return subscription;
 
         } else {
@@ -118,7 +119,7 @@ export class ActorNotAuthorizedToInteractIn extends Error {
     }
 }
 
-export class AuthorizingIsNotDefinedForThisActor<C extends IContext, T extends Usecase<C>, User, U extends BaseActor<User>> extends Error {
+export class AuthorizingIsNotDefinedForThisActor<C extends Context<AssociatedValues>, T extends Usecase<C>, User, U extends BaseActor<User>> extends Error {
     constructor(usecase: T, actor: U) {
         super(`Authorizing ${ actor.constructor.name } to ${ usecase.constructor.name } is not defined. Please override authorize() at ${ usecase.constructor.name }.`);
         Object.setPrototypeOf(this, new.target.prototype);

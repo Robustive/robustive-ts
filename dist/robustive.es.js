@@ -1,32 +1,11 @@
-var __defProp = Object.defineProperty;
-var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
-var __publicField = (obj, key, value) => {
-  __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
-  return value;
-};
 class BaseActor {
   constructor(user = null) {
-    __publicField(this, "user");
     this.user = user;
   }
 }
 class Nobody extends BaseActor {
 }
 const isNobody = (actor) => actor.constructor === Nobody;
-/*! *****************************************************************************
-Copyright (c) Microsoft Corporation.
-
-Permission to use, copy, modify, and/or distribute this software for any
-purpose with or without fee is hereby granted.
-
-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
-REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
-AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
-INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
-LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
-OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
-PERFORMANCE OF THIS SOFTWARE.
-***************************************************************************** */
 var extendStatics = function(d, b) {
   extendStatics = Object.setPrototypeOf || { __proto__: [] } instanceof Array && function(d2, b2) {
     d2.__proto__ = b2;
@@ -90,7 +69,7 @@ function __generator(thisArg, body) {
   function step(op) {
     if (f)
       throw new TypeError("Generator is already executing.");
-    while (_)
+    while (g && (g = 0, op[0] && (_ = 0)), _)
       try {
         if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done)
           return t;
@@ -407,6 +386,7 @@ var Subscription = function() {
   }();
   return Subscription2;
 }();
+Subscription.EMPTY;
 function isSubscription(value) {
   return value instanceof Subscription || value && "closed" in value && isFunction(value.remove) && isFunction(value.add) && isFunction(value.unsubscribe);
 }
@@ -444,48 +424,15 @@ var timeoutProvider = {
 };
 function reportUnhandledError(err) {
   timeoutProvider.setTimeout(function() {
-    var onUnhandledError = config.onUnhandledError;
-    if (onUnhandledError) {
-      onUnhandledError(err);
-    } else {
+    {
       throw err;
     }
   });
 }
 function noop() {
 }
-var COMPLETE_NOTIFICATION = function() {
-  return createNotification("C", void 0, void 0);
-}();
-function errorNotification(error) {
-  return createNotification("E", void 0, error);
-}
-function nextNotification(value) {
-  return createNotification("N", value, void 0);
-}
-function createNotification(kind, value, error) {
-  return {
-    kind,
-    value,
-    error
-  };
-}
-var context = null;
 function errorContext(cb) {
-  if (config.useDeprecatedSynchronousErrorHandling) {
-    var isRoot = !context;
-    if (isRoot) {
-      context = { errorThrown: false, error: null };
-    }
-    cb();
-    if (isRoot) {
-      var _a = context, errorThrown = _a.errorThrown, error = _a.error;
-      context = null;
-      if (errorThrown) {
-        throw error;
-      }
-    }
-  } else {
+  {
     cb();
   }
 }
@@ -508,24 +455,24 @@ var Subscriber = function(_super) {
     return new SafeSubscriber(next, error, complete);
   };
   Subscriber2.prototype.next = function(value) {
-    if (this.isStopped) {
-      handleStoppedNotification(nextNotification(value), this);
-    } else {
+    if (this.isStopped)
+      ;
+    else {
       this._next(value);
     }
   };
   Subscriber2.prototype.error = function(err) {
-    if (this.isStopped) {
-      handleStoppedNotification(errorNotification(err), this);
-    } else {
+    if (this.isStopped)
+      ;
+    else {
       this.isStopped = true;
       this._error(err);
     }
   };
   Subscriber2.prototype.complete = function() {
-    if (this.isStopped) {
-      handleStoppedNotification(COMPLETE_NOTIFICATION, this);
-    } else {
+    if (this.isStopped)
+      ;
+    else {
       this.isStopped = true;
       this._complete();
     }
@@ -637,12 +584,6 @@ function handleUnhandledError(error) {
 }
 function defaultErrorHandler(err) {
   throw err;
-}
-function handleStoppedNotification(notification, subscriber) {
-  var onStoppedNotification = config.onStoppedNotification;
-  onStoppedNotification && timeoutProvider.setTimeout(function() {
-    return onStoppedNotification(notification, subscriber);
-  });
 }
 var EMPTY_OBSERVER = {
   closed: true,
@@ -1320,7 +1261,6 @@ function tap(observerOrNext, error, complete) {
 const boundary = null;
 class Usecase {
   constructor(initialSceneContext) {
-    __publicField(this, "context");
     this.context = initialSceneContext;
   }
   instantiate(nextSceneContext) {
@@ -1361,23 +1301,28 @@ class Usecase {
         if (!observable2) {
           return of(scenario2);
         }
-        return observable2.pipe(mergeMap((nextSceneContext) => {
-          scenario2.push(nextSceneContext);
-          return recursive(scenario2);
-        }));
+        return observable2.pipe(
+          mergeMap((nextSceneContext) => {
+            scenario2.push(nextSceneContext);
+            return recursive(scenario2);
+          })
+        );
       };
       if (!this.authorize(actor)) {
         const err = new ActorNotAuthorizedToInteractIn(actor.constructor.name, this.constructor.name);
         return throwError(() => err);
       }
       const scenario = [this];
-      return recursive(scenario).pipe(map((scenes) => {
-        const performedScenario = scenes.map((scene) => scene.context);
-        return performedScenario;
-      }), tap((scenario2) => {
-        const elapsedTime = new Date().getTime() - startAt.getTime();
-        console.info(`${this.constructor.name} takes ${elapsedTime} ms.`, scenario2);
-      }));
+      return recursive(scenario).pipe(
+        map((scenes) => {
+          const performedScenario = scenes.map((scene) => scene.context);
+          return performedScenario;
+        }),
+        tap((scenario2) => {
+          const elapsedTime = new Date().getTime() - startAt.getTime();
+          console.info(`${this.constructor.name} takes ${elapsedTime} ms.`, scenario2);
+        })
+      );
     }
   }
 }
