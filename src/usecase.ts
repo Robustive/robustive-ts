@@ -8,16 +8,16 @@ export const boundary: Boundary = null;
 // eslint-disable-next-line @typescript-eslint/ban-types
 export type Empty = {};
 
-type SCENE = "scene";
-export type AssociatedValues = Record<string, object>;
+type SCENE = keyof { "scene": string };
+export type ContextualValues = Record<string, object>;
 
 // 識別共有体型(Discriminated Union)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type Context<T> = T extends AssociatedValues ? {
+export type Context<T> = T extends ContextualValues ? {
     [K in keyof T]: (Record<SCENE, K> & T[K]);
 }[keyof T] : never;
 
-export interface IUsecase<C extends Context<AssociatedValues>> {
+export interface IUsecase<C extends Context<ContextualValues>> {
     context: C;
     next(): Observable<this>|Boundary;
     authorize<T extends Actor<T>>(actor: T): boolean;
@@ -25,7 +25,7 @@ export interface IUsecase<C extends Context<AssociatedValues>> {
     interactedBy<T extends Actor<T>>(actor: T, observer: Partial<Observer<[C, C[]]>>): Subscription
 }
 
-export abstract class Usecase<C extends Context<AssociatedValues>> implements IUsecase<C> {
+export abstract class Usecase<C extends Context<ContextualValues>> implements IUsecase<C> {
     context: C;
     abstract next(): Observable<this>|Boundary;
 
@@ -119,7 +119,7 @@ export class ActorNotAuthorizedToInteractIn extends Error {
     }
 }
 
-export class AuthorizingIsNotDefinedForThisActor<C extends Context<AssociatedValues>, T extends Usecase<C>, User, U extends BaseActor<User>> extends Error {
+export class AuthorizingIsNotDefinedForThisActor<C extends Context<ContextualValues>, T extends Usecase<C>, User, U extends BaseActor<User>> extends Error {
     constructor(usecase: T, actor: U) {
         super(`Authorizing ${ actor.constructor.name } to ${ usecase.constructor.name } is not defined. Please override authorize() at ${ usecase.constructor.name }.`);
         Object.setPrototypeOf(this, new.target.prototype);
