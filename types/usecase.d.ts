@@ -2,14 +2,20 @@ import { Observable, Observer, Subscription } from "rxjs";
 import { Actor, BaseActor } from "./actor";
 export type Boundary = null;
 export declare const boundary: Boundary;
-export type Empty = {};
-type SCENE = keyof {
-    "scene": string;
+export type Empty = {
+    [key: string]: never;
 };
 export type ContextualValues = Record<string, object>;
-export type Context<T> = T extends ContextualValues ? {
-    [K in keyof T]: (Record<SCENE, K> & T[K]);
-}[keyof T] : never;
+export type Context<T extends ContextualValues> = {
+    [K in keyof T]: T[K] extends Empty ? Record<"scene", K> : Record<"scene", K> & T[K];
+}[keyof T];
+declare class BaseContextFactory<T extends ContextualValues> {
+    instantiate(scene: string, withValues: T[string]): Context<T>;
+}
+export type ContextFactory<T extends ContextualValues> = BaseContextFactory<T> & {
+    [K in keyof T]: T[K] extends Empty ? () => Record<"scene", K> : (args: T[K]) => Record<"scene", K> & T[K];
+};
+export declare const ContextFactory: new <T extends ContextualValues>() => ContextFactory<T>;
 export interface IUsecase<C extends Context<ContextualValues>> {
     context: C;
     next(): Observable<this> | Boundary;

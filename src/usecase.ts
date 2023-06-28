@@ -5,18 +5,45 @@ import { Actor, BaseActor } from "./actor";
 export type Boundary = null;
 export const boundary: Boundary = null;
 
-// eslint-disable-next-line @typescript-eslint/ban-types
-export type Empty = {};
+export type Empty = { [key: string]: never };
 
-type SCENE = keyof { "scene": string };
 export type ContextualValues = Record<string, object>;
 
 // 識別共有体型(Discriminated Union)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type Context<T> = T extends ContextualValues ? {
-    [K in keyof T]: (Record<SCENE, K> & T[K]);
-}[keyof T] : never;
+export type Context<T extends ContextualValues> = {
+    [K in keyof T]: T[K] extends Empty 
+                        ? Record<"scene", K>
+                        : Record<"scene", K> & T[K];
+}[keyof T];
 
+class BaseContextFactory<T extends ContextualValues> {
+    instantiate(scene: string, withValues: T[string]): Context<T> {
+        return { "scene": scene, ...withValues };
+    }
+}
+  
+export type ContextFactory<T extends ContextualValues> = BaseContextFactory<T> & { 
+    [K in keyof T]: T[K] extends Empty
+                        ? () => Record<"scene", K>
+                        : (args: T[K]) => Record<"scene", K> & T[K] 
+};
+  
+export const ContextFactory = class ContextFactory<T extends ContextualValues> {
+    constructor() {
+        return new Proxy(
+            new BaseContextFactory()
+            , {
+                get(target, p, receiver) {
+                    return ((typeof p === "string") && !(p in target)) 
+                        ? (withValues: T[string]) => target.instantiate(p, withValues)
+                        : Reflect.get(target, p, receiver);
+                }
+            }
+        );
+    }
+} as new <T extends ContextualValues>() => ContextFactory<T>;
+  
 export interface IUsecase<C extends Context<ContextualValues>> {
     context: C;
     next(): Observable<this>|Boundary;
