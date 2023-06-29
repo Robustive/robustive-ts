@@ -9,7 +9,7 @@ export type Empty = { [key: string]: never };
 
 export type ContextualValues = Record<string, object>;
 
-// 識別共有体型(Discriminated Union)
+// Discriminated Union
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Context<T extends ContextualValues> = {
     [K in keyof T]: T[K] extends Empty 
@@ -26,16 +26,16 @@ class BaseContextFactory<T extends ContextualValues> {
 export type ContextFactory<T extends ContextualValues> = BaseContextFactory<T> & { 
     [K in keyof T]: T[K] extends Empty
                         ? () => Record<"scene", K>
-                        : (args: T[K]) => Record<"scene", K> & T[K] 
+                        : (withValues: T[K]) => Record<"scene", K> & T[K] 
 };
   
 export const ContextFactory = class ContextFactory<T extends ContextualValues> {
     constructor() {
         return new Proxy(
-            new BaseContextFactory()
+            new BaseContextFactory<T>()
             , {
                 get(target, p, receiver) {
-                    return ((typeof p === "string") && !(p in target)) 
+                    return ((typeof p === "string") && (p as keyof T)) 
                         ? (withValues: T[string]) => target.instantiate(p, withValues)
                         : Reflect.get(target, p, receiver);
                 }
