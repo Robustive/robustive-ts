@@ -13,7 +13,7 @@ declare class BaseContextFactory<T extends ContextualValues> {
     instantiate(scene: string, withValues: T[string]): Context<T>;
 }
 export type ContextFactory<T extends ContextualValues> = BaseContextFactory<T> & {
-    [K in keyof T]: T[K] extends Empty ? () => Record<"scene", K> : (withValues: T[K]) => Record<"scene", K> & T[K];
+    [K in keyof T]: T[K] extends Empty ? () => Context<T> : (withValues: T[K]) => Context<T>;
 };
 export declare const ContextFactory: new <T extends ContextualValues>() => ContextFactory<T>;
 export interface IUsecase<C extends Context<ContextualValues>> {

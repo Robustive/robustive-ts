@@ -25,8 +25,8 @@ class BaseContextFactory<T extends ContextualValues> {
   
 export type ContextFactory<T extends ContextualValues> = BaseContextFactory<T> & { 
     [K in keyof T]: T[K] extends Empty
-                        ? () => Record<"scene", K>
-                        : (withValues: T[K]) => Record<"scene", K> & T[K] 
+                        ? () => Context<T>
+                        : (withValues: T[K]) => Context<T>
 };
   
 export const ContextFactory = class ContextFactory<T extends ContextualValues> {
