@@ -5,85 +5,82 @@ import { Actor, BaseActor } from "./actor";
 export type Boundary = null;
 export const boundary: Boundary = null;
 
-export type Empty = { [key: string]: never };
+export type Empty = Record<string, never>;
+
+type DeepReadonly<T> = T extends object
+  ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
+  : T;
 
 export type ContextualValues = Record<string, object>;
 
 // Discriminated Union
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Context<T extends ContextualValues> = {
-    [K in keyof T]: T[K] extends Empty 
-                        ? Record<"scene", K>
-                        : Record<"scene", K> & T[K];
+    readonly [K in keyof T]: DeepReadonly<T[K] extends Empty 
+        ? Record<"scene", K>
+        : Record<"scene", K> & T[K]>;
 }[keyof T];
-
-class BaseContextFactory<T extends ContextualValues> {
-    instantiate(scene: string, withValues: T[string]): Context<T> {
-        return { "scene": scene, ...withValues };
-    }
-}
   
-export type ContextFactory<T extends ContextualValues> = BaseContextFactory<T> & { 
+export type ContextFactory<T extends ContextualValues> = { 
     [K in keyof T]: T[K] extends Empty
-                        ? () => Context<T>
-                        : (withValues: T[K]) => Context<T>
+        ? () => Context<T>
+        : (withValues: T[K]) => Context<T>
 };
   
 export const ContextFactory = class ContextFactory<T extends ContextualValues> {
     constructor() {
         return new Proxy(
-            new BaseContextFactory<T>()
+            this
             , {
-                get(target, p, receiver) {
-                    return ((typeof p === "string") && (p as keyof T)) 
-                        ? (withValues: T[string]) => target.instantiate(p, withValues)
-                        : Reflect.get(target, p, receiver);
+                get(target, prop, receiver) {
+                    return ((typeof prop === "string") && (prop as keyof T)) 
+                        ? (withValues: T[string]) => Object.freeze({ "scene": prop, ...withValues })
+                        : Reflect.get(target, prop, receiver);
                 }
             }
         );
     }
 } as new <T extends ContextualValues>() => ContextFactory<T>;
   
-export interface IUsecase<C extends Context<ContextualValues>> {
-    context: C;
+export interface IUsecase<T extends ContextualValues> {
+    context: Context<T>;
     next(): Observable<this>|Boundary;
-    authorize<T extends Actor<T>>(actor: T): boolean;
-    interactedBy<T extends Actor<T>>(actor: T): Observable<C[]>
-    interactedBy<T extends Actor<T>>(actor: T, observer: Partial<Observer<[C, C[]]>>): Subscription
+    authorize<U extends Actor<U>>(actor: U): boolean;
+    interactedBy<U extends Actor<U>>(actor: U): Observable<Context<T>[]>
+    interactedBy<U extends Actor<U>>(actor: U, observer: Partial<Observer<[Context<T>, Context<T>[]]>>): Subscription
 }
 
-export abstract class Usecase<C extends Context<ContextualValues>> implements IUsecase<C> {
-    context: C;
+export abstract class Usecase<T extends ContextualValues> implements IUsecase<T> {
+    context: Context<T>;
     abstract next(): Observable<this>|Boundary;
 
-    constructor(initialSceneContext: C) {
+    constructor(initialSceneContext: Context<T>) {
         this.context = initialSceneContext;
     }
 
-    protected instantiate(nextSceneContext: C): this {
+    protected instantiate(nextSceneContext: Context<T>): this {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return new (this.constructor as any)(nextSceneContext);
     }
 
-    just(nextSceneContext: C): Observable<this> {
+    just(nextSceneContext: Context<T>): Observable<this> {
         return of(this.instantiate(nextSceneContext));
     }
 
-    authorize<T extends Actor<T>>(actor: T): boolean {
-        throw new AuthorizingIsNotDefinedForThisActor(this, actor);
+    authorize<U extends Actor<U>>(actor: U): boolean {
+        throw new AuthorizingIsNotDefinedForThisActor<T, this, U>(this, actor);
     }
 
-
-    interactedBy<T extends Actor<T>>(actor: T): Observable<C[]>
-    interactedBy<T extends Actor<T>>(actor: T, observer: Partial<Observer<[C, C[]]>>): Subscription
+    interactedBy<U extends Actor<U>>(actor: U): Observable<Context<T>[]>
+    interactedBy<U extends Actor<U>>(actor: U, observer: Partial<Observer<[Context<T>, Context<T>[]]>>): Subscription
 
     // overload
-    interactedBy<T extends Actor<T>>(actor: T, observer?: Partial<Observer<[C, C[]]>> | null): Observable<C[]> | Subscription {
+    interactedBy<U extends Actor<U>>(actor: U, observer?: Partial<Observer<[Context<T>, Context<T>[]]>> | null): Observable<Context<T>[]> | Subscription {
         if (observer) {
             let subscription: Subscription | null = null;
             subscription = this.interactedBy(actor)
                 .subscribe({ 
-                    next: (performedScenario: C[]) => {
+                    next: (performedScenario: Context<T>[]) => {
                         const lastSceneContext = performedScenario.slice(-1)[0];
                         observer.next?.([lastSceneContext, performedScenario]);
                     }
@@ -95,7 +92,7 @@ export abstract class Usecase<C extends Context<ContextualValues>> implements IU
                         subscription?.unsubscribe();
                         observer.complete?.(); 
                     } 
-                } as Partial<Observer<C[]>>);
+                } as Partial<Observer<Context<T>[]>>);
             return subscription;
 
         } else {
@@ -146,8 +143,8 @@ export class ActorNotAuthorizedToInteractIn extends Error {
     }
 }
 
-export class AuthorizingIsNotDefinedForThisActor<C extends Context<ContextualValues>, T extends Usecase<C>, User, U extends BaseActor<User>> extends Error {
-    constructor(usecase: T, actor: U) {
+export class AuthorizingIsNotDefinedForThisActor<T extends ContextualValues, S extends Usecase<T>, U extends Actor<U>> extends Error {
+    constructor(usecase: S, actor: U) {
         super(`Authorizing ${ actor.constructor.name } to ${ usecase.constructor.name } is not defined. Please override authorize() at ${ usecase.constructor.name }.`);
         Object.setPrototypeOf(this, new.target.prototype);
     }
