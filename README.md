@@ -13,175 +13,161 @@ $ yarn add robustive-ts
 
 ## Describe Usecases as codes.
 
-```typescript
-export const SignIn = {
-    /* Basic Courses */
-    userStartsSignInProcess : "ユーザはサインインを開始する"
-    , serviceValidateInputs : "サービスは入力項目に問題がないかを確認する"
-    , onSuccessInValidatingThenServiceTrySigningIn : "入力項目に問題がない場合_サービスはサインインを試行する"
+Describe the usecase with robustness analysis as codes like below.
 
+```typescript
+const SignIn = {
+    /* Basic Courses */
+    basics: {
+        userStartsSignInProcess: "ユーザはサインインを開始する"
+        , serviceValidateInputs: "サービスは入力項目に問題がないかを確認する"
+        , onSuccessInValidatingThenServiceTrySigningIn: "入力項目に問題がない場合_サービスはサインインを試行する"
+    }
+    
     /* Alternative Courses */
-    // nothing
+    // alternatives: { /* nothing on this usecase. */ }
 
     /* Boundaries */
-    , goals : {
-        onSuccessInSigningInThenServicePresentsHomeView : "サインインに成功した場合_サービスはホーム画面を表示する"
-        , onFailureInValidatingThenServicePresentsError : "入力項目に問題がある場合_サービスはエラーを表示する"
-        , onFailureInSigningInThenServicePresentsError : "サインインに失敗した場合_サービスはエラーを表示する"
+    , goals: {
+        onSuccessInSigningInThenServicePresentsHomeView: "サインインに成功した場合_サービスはホーム画面を表示する"
+        , onFailureInValidatingThenServicePresentsError: "入力項目に問題がある場合_サービスはエラーを表示する"
+        , onFailureInSigningInThenServicePresentsError: "サインインに失敗した場合_サービスはエラーを表示する"
     }
 } as const;
-
-type SignIn = typeof SignIn[keyof typeof SignIn];
 ```
 
-```typescript
-export type SignInGoal = UsecaseScenario<{
-    [SignIn.goals.onSuccessInSigningInThenServicePresentsHomeView] : { user: User; };
-    [SignIn.goals.onFailureInValidatingThenServicePresentsError] : { result: SignInValidationResult; };
-    [SignIn.goals.onFailureInSigningInThenServicePresentsError] : { error: Error; };
-}>;
-
-export type SignInScenario = UsecaseScenario<{
-    [SignIn.userStartsSignInProcess] : { id: string|null; password: string|null; };
-    [SignIn.serviceValidateInputs] : { id: string|null; password: string|null; };
-    [SignIn.onSuccessInValidatingThenServiceTrySigningIn] : { id: string; password: string; };
-}> | SignInGoal;
-```
+Describe the entities you need in each scene of the usecase.
 
 ```typescript
-export type SignInContext = UsecaseContext<SignInScenario>;
-```
-
-This is same as below.
-
-```typescript
-type SignInScenario = {
-     { scene: SignIn.userStartsSignInProces, id: string|null; password: string|null; }
-    , { scene: SignIn.serviceValidateInputs, id: string|null; password: string|null; }
-    , { scene: SignIn.onSuccessInValidatingThenServiceTrySigningIn, id: string; password: string; }
-    , { scene: SignIn.goals.onSuccessInSigningInThenServicePresentsHomeView, user: User; }
-    , { scene: SignIn.goals.onFailureInValidatingThenServicePresentsError, result: SignInValidationResult; }
-    , { scene: SignIn.goals.onFailureInSigningInThenServicePresentsError, error: Error; }
+type SignInScenes = {
+    basics : {
+        [SignIn.basics.userStartsSignInProcess]: { id: string | null; password: string | null; };
+        [SignIn.basics.serviceValidateInputs]: { id: string | null; password: string | null; };
+        [SignIn.basics.onSuccessInValidatingThenServiceTrySigningIn]: { id: string; password: string; };
+    };
+    alternatives: Empty;
+    goals : {
+        [SignIn.goals.onSuccessInSigningInThenServicePresentsHomeView]: { user: UserProperties; };
+        [SignIn.goals.onFailureInValidatingThenServicePresentsError]: { result: SignInValidationResult; };
+        [SignIn.goals.onFailureInSigningInThenServicePresentsError]: { error: Error; };
+    };
 };
 ```
 
+In the end, describe all usecases and declare definitions like this.
 
 ```typescript
-export class SignInUsecase extends Usecase<SignInScenario> {
+// This should be extends UsecaseDefinitions.
+type MyUsecaseDefinitions = {
+    boot : { scenes: BootScenes; scenario: BootScenario; };
+    signIn : { scenes: SignInScenes; scenario: SignInScenario; };
+    signUp : { scenes: SignUpScenes; scenario: SignUpScenario; };
+    signOut : { scenes: SignOutScenes; scenario: SignOutScenario; };
+    ...
+};
 
-    override next(): Observable<this>|Boundary {
-        switch (this.context.scene) {
-        case SignIn.userStartsSignInProcess: {
-            return this.just({ scene: SignIn.serviceValidateInputs, id: this.context.id, password: this.context.password });
+const usecases = new UsecaseSelector<MyUsecaseDefinitions>();
+```
+
+```typescript
+import { catchError, map, Observable } from "rxjs";
+
+class SignInScenario extends BaseScenario<SignInScenes> {
+
+    authorize<User, A extends IActor<User>>(actor: A, usecase: keyof MyUsecaseDefinitions): boolean {
+        // TODO
+        return true;
+    }
+
+    next(to: MutableContext<SignInScenes>): Observable<Context<SignInScenes>> {
+        switch (to.scene) {
+        case SignIn.basics.userStartsSignInProcess: {
+            return this.just(this.basics[SignIn.basics.serviceValidateInputs]({ id: to.id, password: to.password }));
         }
-        case SignIn.serviceValidateInputs: {
-            return this.validate(this.context.id, this.context.password);
+        case SignIn.basics.serviceValidateInputs: {
+            return this.validate(to.id, to.password);
         }
-        case SignIn.onSuccessInValidatingThenServiceTrySigningIn : {
-            return this.signIn(this.context.id, this.context.password);
+        case SignIn.basics.onSuccessInValidatingThenServiceTrySigningIn: {
+            return this.signIn(to.id, to.password);
         }
-        case SignIn.onSuccessThenServicePresentsHomeView:
-        case SignIn.onFailureInValidatingThenServicePresentsError:
-        case SignIn.onFailureThenServicePresentsError: {
-            return boundary;
+        default: {
+            throw new Error(`not implemented: ${ to.scene }`);
         }
         }
     }
-
-    private validate(id: string|null, password: string|null): Observable<this> {
-        const result = UserModel.validate(id, password);
+    
+    private validate(id: string | null, password: string | null): Observable<Context<SignInScenes>> {
+        // TODO: Implement UserModel so that it can validate id and password.
+        const result = User.validate(id, password);
         if (result === true && id !== null && password != null) {
-            return this.just({ scene: SignIn.onSuccessInValidatingThenServiceTrySigningIn, id, password });
+            return this.just(this.basics[SignIn.basics.onSuccessInValidatingThenServiceTrySigningIn]({ id, password }));
         } else {
-            return this.just({ scene: SignIn.onFailureInValidatingThenServicePresentsError, result });
+            return this.just(this.goals[SignIn.goals.onFailureInValidatingThenServicePresentsError]({ result }));
         }
     }
 
-    private signIn(id: string, password: string): Observable<this> {
-        return UserModel
-            .signIn(id, password)
+    private signIn(id: string, password: string): Observable<Context<SignInScenes>> {
+        // TODO: Implement UserModel so that a user can sign in with id and password.
+        return User.signIn(id, password)
             .pipe(
-                map(user => {
-                    return this.instantiate({ scene: SignIn.onSuccessThenServicePresentsHomeView, user });
-                })
-                , catchError(error => this.just({ scene: SignIn.onFailureThenServicePresentsError, error }))
+                map(userProperties => this.goals[SignIn.goals.onSuccessInSigningInThenServicePresentsHomeView]({ user: userProperties }))
+                , catchError((error: Error) => this.just(this.goals[SignIn.goals.onFailureInSigningInThenServicePresentsError]({ error })))
             );
     }
 }
 ```
 
-item     | kind      | description
----------|-----------|-------------------------------------
-just     | method    | use when performing the next scene.
-next     | method    | a definitions of scenario branch.
-Boundary | type      | a typealias of null.
-boundary | constant  | an alias of null.
+item      | kind      | description
+----------|-----------|--------------------------------------------------------
+authorize | method    | a method to check if the actor can perform the usecase.
+just      | method    | use when performing the next scene.
+next      | method    | a definitions of scenario branch.
+
 
 ## Perform a Usecase
 
+Describe application behaviors.
+
 ```typescript
-const signIn = (id: string|null, password: string|null) => {
+const signIn = (usecase: Usecase<MyUsecaseDefinitions, "signIn">, actor: Actor) => {
     let subscription: Subscription|null = null;
-    subscription = new SignInUsecase({ scene: SignIn.userStartsSignInProcess, id, password})
-        .interactedBy(new Nobody())
-        .subscribe({
+    subscription = usecase
+        .interactedBy(actor, {
             next: (performedScenario) => {
-                const lastContext = performedScenario.slice(-1)[0];
-                switch(lastContext.scene){
-                case SignIn.onSuccessThenServicePresentsHomeView:
-                    router.replace("/");
-                    break;
-
-                case SignIn.onFailureInValidatingThenServicePresentsError: {
-                    if (lastContext.result === true){ return; }
-                    const labelMailAddress = t.common.labels.mailAddress;
-                    const labelPassword = t.common.labels.password;
-
-                    switch (lastContext.result.id) {
-                    case "isRequired":
-                        state.idInvalidMessage = t.common.validations.isRequired(labelMailAddress);
+                next: ([lastSceneContext]) => {
+                    switch(lastSceneContext.scene){
+                    case SignIn.goals.onSuccessThenServicePresentsHomeView:
+                        // TODO: show home view.
                         break;
-                    case "isMalformed":
-                        state.idInvalidMessage = t.common.validations.isMalformed(labelMailAddress);
-                        break;
-                    case null:
-                        state.idInvalidMessage = null;
+
+                    case SignIn.goals.onFailureInValidatingThenServicePresentsError: {
+                        // TODO: show errors.
                         break;
                     }
-
-                    switch (lastContext.result.password) {
-                    case "isRequired":
-                        state.passwordInvalidMessage = t.common.validations.isRequired(labelPassword);
-                        break;
-                    case "isTooShort":
-                        state.passwordInvalidMessage = t.common.validations.isTooShort(labelPassword, 8);
-                        break;
-                    case "isTooLong":
-                        state.passwordInvalidMessage = t.common.validations.isTooLong(labelPassword, 20);
-                        break;
-                    case null:
-                        state.passwordInvalidMessage = null;
+                    case SignIn.goals.onFailureThenServicePresentsError: {
+                        // TODO: show errors.
                         break;
                     }
-                    break;
+                    }
                 }
-                case SignIn.onFailureThenServicePresentsError: {
-                    console.log("SERVICE ERROR:", lastContext.error);
-                    break;
+                , complete: () => {
+                    subscription?.unsubscribe();
                 }
-                }
-            }
-            , error: (e) => {
-                if (e instanceof ActorNotAuthorizedToInteractIn) {
-                    console.error(e);
-                } else {
-                    console.error(e);
-                }
-            }
-            , complete: () => {
-                console.info("complete");
-                subscription?.unsubscribe();
-            }
         });
 }
+```
+
+## Start performing a Usecase
+
+```typescript
+const usecases = new UsecaseSelector<MyUsecaseDefinitions>();
+
+const usecase = usecases
+                    .signIn(SignInScenario)
+                    .basics[Nobody.signIn.basics.userStartsSignInProcess]({ 
+                        id: state.email
+                        , password: state.password 
+                    });
+
+signIn(usecase, new Nobody());
 ```

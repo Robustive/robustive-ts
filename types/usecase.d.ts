@@ -1,41 +1,89 @@
 import { Observable, Observer, Subscription } from "rxjs";
-import { Actor } from "./actor";
-export type Boundary = null;
-export declare const boundary: Boundary;
-export type Empty = Record<string, never>;
+import { IActor } from "./actor";
 type DeepReadonly<T> = T extends object ? {
     readonly [K in keyof T]: DeepReadonly<T[K]>;
 } : T;
-export type ContextualValues = Record<string, object>;
-export type Context<T extends ContextualValues> = {
-    readonly [K in keyof T]: DeepReadonly<T[K] extends Empty ? Record<"scene", K> : Record<"scene", K> & T[K]>;
-}[keyof T];
-export type ContextFactory<T extends ContextualValues> = {
-    [K in keyof T]: T[K] extends Empty ? () => Context<T> : (withValues: T[K]) => Context<T>;
+type Mutable<T> = T extends object ? {
+    -readonly [K in keyof T]: Mutable<T[K]>;
+} : T;
+type PreFlatten<Z> = {
+    [C in keyof Z as C extends string ? Z[C] extends Empty ? never : `${C}.${keyof Z[C] & string}` : C]: Z[C];
 };
-export declare const ContextFactory: new <T extends ContextualValues>() => ContextFactory<T>;
-export interface IUsecase<T extends ContextualValues> {
-    context: Context<T>;
-    next(): Observable<this> | Boundary;
-    authorize<U extends Actor<U>>(actor: U): boolean;
-    interactedBy<U extends Actor<U>>(actor: U): Observable<Context<T>[]>;
-    interactedBy<U extends Actor<U>>(actor: U, observer: Partial<Observer<[Context<T>, Context<T>[]]>>): Subscription;
+type Flatten<Z> = {
+    [CK in keyof PreFlatten<Z>]: CK extends `${infer C extends keyof Z & string}.${string}` ? CK extends `${string}.${infer K extends keyof Z[C] & string}` ? Z[C][K] : never : never;
+};
+declare const courses: readonly ["basics", "alternatives", "goals"];
+type Courses = typeof courses[number];
+type Basics = Extract<Courses, "basics">;
+type Alternatives = Extract<Courses, "alternatives">;
+type Goals = Extract<Courses, "goals">;
+type ContextualValues = Record<string, object>;
+export type Empty = Record<string, never>;
+export type Scenes = {
+    basics: ContextualValues;
+    alternatives: ContextualValues;
+    goals: ContextualValues;
+};
+export type Context<Z extends Scenes> = {
+    readonly [K in keyof Flatten<Z>]: K extends `${infer C}.${infer S}` ? DeepReadonly<Flatten<Z>[K] extends Empty ? Record<"scene", S> & Record<"course", C> : Record<"scene", S> & Record<"course", C> & Flatten<Z>[K]> : never;
+}[keyof Flatten<Z>];
+export type MutableContext<Z extends Scenes> = Mutable<Context<Z>>;
+export type Contexts<S, C extends Courses> = S extends IScenario<infer Z extends Scenes> ? {
+    [K in keyof Z[C]]: Z[C] extends Empty ? Empty : Z[C][K] extends Empty ? () => Context<Z> : (withValues: Z[C][K]) => Context<Z>;
+} : never;
+export type ContextSelector<S> = S extends IScenario<infer Z extends Scenes> ? {
+    [C in keyof Z]: C extends Courses ? Contexts<S, C> : never;
+} : never;
+export declare const ContextSelector: new <S>() => {
+    basics: Contexts<S, "basics">;
+    alternatives: Contexts<S, "alternatives">;
+    goals: Contexts<S, "goals">;
+};
+export type UsecaseDefinition<Z extends Scenes, S extends IScenario<Z>> = {
+    scenes: Z;
+    scenario: S;
+};
+export type UsecaseDefinitions = Record<string, UsecaseDefinition<Scenes, IScenario<Scenes>>>;
+type ScenarioConstructor<D extends UsecaseDefinitions, U extends keyof D> = new () => D[U]["scenario"];
+export interface IScenario<Z extends Scenes> {
+    authorize<D extends UsecaseDefinitions, User, A extends IActor<User>>(actor: A, usecase: keyof D): boolean;
+    next(to: MutableContext<Z>): Observable<Context<Z>>;
+    just(next: Context<Z>): Observable<Context<Z>>;
 }
-export declare abstract class Usecase<T extends ContextualValues> implements IUsecase<T> {
-    context: Context<T>;
-    abstract next(): Observable<this> | Boundary;
-    constructor(initialSceneContext: Context<T>);
-    protected instantiate(nextSceneContext: Context<T>): this;
-    just(nextSceneContext: Context<T>): Observable<this>;
-    authorize<U extends Actor<U>>(actor: U): boolean;
-    interactedBy<U extends Actor<U>>(actor: U): Observable<Context<T>[]>;
-    interactedBy<U extends Actor<U>>(actor: U, observer: Partial<Observer<[Context<T>, Context<T>[]]>>): Subscription;
+declare class Scene<D extends UsecaseDefinitions, U extends keyof D, Z extends Scenes, S extends IScenario<Z>> {
+    #private;
+    constructor(usecase: U, context: Context<Z>, scenario: S);
+    interactedBy<User, A extends IActor<User>>(actor: A): Observable<Context<Z>[]>;
+    interactedBy<User, A extends IActor<User>>(actor: A, observer: Partial<Observer<[MutableContext<Z>, Context<Z>[]]>>): Subscription;
 }
+export type Usecase<D extends UsecaseDefinitions, U extends keyof D> = Record<"name", U> & Scene<D, U, D[U]["scenes"], D[U]["scenario"]>;
+export type Usecases<D extends UsecaseDefinitions> = {
+    [U in keyof D]: Usecase<D, U>;
+}[keyof D];
+export type Course<D extends UsecaseDefinitions, U extends keyof D, C extends Courses> = {
+    [K in keyof D[U]["scenes"][C]]: D[U]["scenes"][C][K] extends Empty ? () => Usecase<D, U> : (withValues: D[U]["scenes"][C][K]) => Usecase<D, U>;
+};
+export declare abstract class BaseScenario<Z extends Scenes> implements IScenario<Z> {
+    basics: Contexts<this, Basics>;
+    alternatives: Contexts<this, Alternatives>;
+    goals: Contexts<this, Goals>;
+    constructor();
+    abstract authorize<D extends UsecaseDefinitions, User, A extends IActor<User>>(actor: A, usecase: keyof D): boolean;
+    abstract next(to: MutableContext<Z>): Observable<Context<Z>>;
+    just(next: Context<Z>): Observable<Context<Z>>;
+}
+declare class CourseSelector<D extends UsecaseDefinitions, U extends keyof D> {
+    basics: Course<D, U, Basics>;
+    alternatives: Course<D, U, Alternatives>;
+    goals: Course<D, U, Goals>;
+    constructor(usecase: U, scenario: ScenarioConstructor<D, U>);
+}
+export type UsecaseSelector<D extends UsecaseDefinitions> = {
+    [U in keyof D]: (scenario: new (usecase: U, context: Context<D[U]["scenes"]>) => D[U]["scenario"]) => CourseSelector<D, U>;
+};
+export declare const UsecaseSelector: new <D extends UsecaseDefinitions>() => UsecaseSelector<D>;
 export declare class ActorNotAuthorizedToInteractIn extends Error {
     constructor(actor: string, usecase: string);
-}
-export declare class AuthorizingIsNotDefinedForThisActor<T extends ContextualValues, S extends Usecase<T>, U extends Actor<U>> extends Error {
-    constructor(usecase: S, actor: U);
 }
 export {};
 //# sourceMappingURL=usecase.d.ts.map

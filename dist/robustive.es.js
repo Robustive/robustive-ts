@@ -1,3 +1,22 @@
+var __accessCheck = (obj, member, msg) => {
+  if (!member.has(obj))
+    throw TypeError("Cannot " + msg);
+};
+var __privateGet = (obj, member, getter) => {
+  __accessCheck(obj, member, "read from private field");
+  return getter ? getter.call(obj) : member.get(obj);
+};
+var __privateAdd = (obj, member, value) => {
+  if (member.has(obj))
+    throw TypeError("Cannot add the same private member more than once");
+  member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
+};
+var __privateSet = (obj, member, value, setter) => {
+  __accessCheck(obj, member, "write to private field");
+  setter ? setter.call(obj, value) : member.set(obj, value);
+  return value;
+};
+var _usecase, _context, _scenario;
 class BaseActor {
   constructor(user = null) {
     this.user = user;
@@ -424,15 +443,32 @@ var timeoutProvider = {
 };
 function reportUnhandledError(err) {
   timeoutProvider.setTimeout(function() {
-    {
+    var onUnhandledError = config.onUnhandledError;
+    if (onUnhandledError) {
+      onUnhandledError(err);
+    } else {
       throw err;
     }
   });
 }
 function noop() {
 }
+var context = null;
 function errorContext(cb) {
-  {
+  if (config.useDeprecatedSynchronousErrorHandling) {
+    var isRoot = !context;
+    if (isRoot) {
+      context = { errorThrown: false, error: null };
+    }
+    cb();
+    if (isRoot) {
+      var _a = context, errorThrown = _a.errorThrown, error = _a.error;
+      context = null;
+      if (errorThrown) {
+        throw error;
+      }
+    }
+  } else {
     cb();
   }
 }
@@ -1258,19 +1294,38 @@ function tap(observerOrNext, error, complete) {
     }));
   }) : identity;
 }
-const boundary = null;
-class Usecase {
-  constructor(initialSceneContext) {
-    this.context = initialSceneContext;
+const ContextSelector = class ContextSelector2 {
+  constructor() {
+    return new Proxy(this, {
+      get(target, prop, receiver) {
+        switch (prop) {
+          case "basics":
+          case "alternatives":
+          case "goals": {
+            return new Proxy({}, {
+              get(target2, prop_scene, receiver2) {
+                return typeof prop_scene === "string" && !(prop_scene in target2) ? (withValues) => {
+                  return Object.freeze({ "scene": prop_scene, course: prop, ...withValues });
+                } : Reflect.get(target2, prop, receiver2);
+              }
+            });
+          }
+          default: {
+            return Reflect.get(target, prop, receiver);
+          }
+        }
+      }
+    });
   }
-  instantiate(nextSceneContext) {
-    return new this.constructor(nextSceneContext);
-  }
-  just(nextSceneContext) {
-    return of(this.instantiate(nextSceneContext));
-  }
-  authorize(actor) {
-    throw new AuthorizingIsNotDefinedForThisActor(this, actor);
+};
+class Scene {
+  constructor(usecase, context2, scenario) {
+    __privateAdd(this, _usecase, void 0);
+    __privateAdd(this, _context, void 0);
+    __privateAdd(this, _scenario, void 0);
+    __privateSet(this, _usecase, usecase);
+    __privateSet(this, _context, context2);
+    __privateSet(this, _scenario, scenario);
   }
   interactedBy(actor, observer) {
     if (observer) {
@@ -1297,45 +1352,78 @@ class Usecase {
       const startAt = new Date();
       const recursive = (scenario2) => {
         const lastScene = scenario2.slice(-1)[0];
-        const observable2 = lastScene.next();
-        if (!observable2) {
+        if (lastScene.course === "goals") {
           return of(scenario2);
         }
+        const observable2 = __privateGet(this, _scenario).next(lastScene);
         return observable2.pipe(
-          mergeMap((nextSceneContext) => {
-            scenario2.push(nextSceneContext);
+          mergeMap((nextScene) => {
+            scenario2.push(nextScene);
             return recursive(scenario2);
           })
         );
       };
-      if (!this.authorize(actor)) {
-        const err = new ActorNotAuthorizedToInteractIn(actor.constructor.name, this.constructor.name);
+      if (!__privateGet(this, _scenario).authorize(actor, __privateGet(this, _usecase))) {
+        const err = new ActorNotAuthorizedToInteractIn(actor.constructor.name, __privateGet(this, _usecase));
         return throwError(() => err);
       }
-      const scenario = [this];
+      const scenario = [__privateGet(this, _context)];
       return recursive(scenario).pipe(
-        map((scenes) => {
-          const performedScenario = scenes.map((scene) => scene.context);
-          return performedScenario;
-        }),
-        tap((scenario2) => {
+        tap((contexts) => {
           const elapsedTime = new Date().getTime() - startAt.getTime();
-          console.info(`${this.constructor.name} takes ${elapsedTime} ms.`, scenario2);
+          console.info(`"${__privateGet(this, _usecase)}" takes ${elapsedTime} ms.`, contexts);
         })
       );
     }
   }
 }
+_usecase = new WeakMap();
+_context = new WeakMap();
+_scenario = new WeakMap();
+const Course = class Course2 {
+  constructor(usecase, course, scenario) {
+    return new Proxy(this, {
+      get(target, prop, receiver) {
+        return typeof prop === "string" && !(prop in target) ? (withValues) => {
+          const context2 = { "scene": prop, course, ...withValues };
+          const usecaseCore = new Scene(usecase, context2, new scenario());
+          return Object.freeze(Object.assign(usecaseCore, { "name": usecase }));
+        } : Reflect.get(target, prop, receiver);
+      }
+    });
+  }
+};
+class BaseScenario {
+  constructor() {
+    const { basics, alternatives, goals } = new ContextSelector();
+    this.basics = basics;
+    this.alternatives = alternatives;
+    this.goals = goals;
+  }
+  just(next) {
+    return of(next);
+  }
+}
+class CourseSelector {
+  constructor(usecase, scenario) {
+    this.basics = new Course(usecase, "basics", scenario);
+    this.alternatives = new Course(usecase, "alternatives", scenario);
+    this.goals = new Course(usecase, "goals", scenario);
+  }
+}
+const UsecaseSelector = class UsecaseSelector2 {
+  constructor() {
+    return new Proxy(this, {
+      get(target, prop, receiver) {
+        return typeof prop === "string" && !(prop in target) ? (scenario) => new CourseSelector(prop, scenario) : Reflect.get(target, prop, receiver);
+      }
+    });
+  }
+};
 class ActorNotAuthorizedToInteractIn extends Error {
   constructor(actor, usecase) {
-    super(`The actor "${actor}" is not authorized to interact in ${usecase}`);
+    super(`The actor "${actor}" is not authorized to interact on usecase "${usecase}".`);
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
-class AuthorizingIsNotDefinedForThisActor extends Error {
-  constructor(usecase, actor) {
-    super(`Authorizing ${actor.constructor.name} to ${usecase.constructor.name} is not defined. Please override authorize() at ${usecase.constructor.name}.`);
-    Object.setPrototypeOf(this, new.target.prototype);
-  }
-}
-export { ActorNotAuthorizedToInteractIn, AuthorizingIsNotDefinedForThisActor, BaseActor, Nobody, Usecase, boundary, isNobody };
+export { ActorNotAuthorizedToInteractIn, BaseActor, BaseScenario, ContextSelector, Nobody, UsecaseSelector, isNobody };

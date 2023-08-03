@@ -1,4 +1,4 @@
 export { BaseActor, Nobody, isNobody } from "./actor.js";
-export type { Actor } from "./actor.js";
-export { boundary, Usecase, ActorNotAuthorizedToInteractIn, AuthorizingIsNotDefinedForThisActor } from "./usecase.js";
-export type { Boundary, Empty, Context, ContextFactory, ContextualValues } from "./usecase.js";
+export type { IActor } from "./actor.js";
+export { ActorNotAuthorizedToInteractIn, BaseScenario, ContextSelector, UsecaseSelector } from "./usecase.js";
+export type { Context, Contexts, Course, Empty, IScenario, MutableContext, Usecase, Usecases, UsecaseDefinitions, Scenes } from "./usecase.js";
