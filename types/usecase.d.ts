@@ -1,5 +1,6 @@
 import { Observable, Observer, Subscription } from "rxjs";
 import { IActor } from "./actor";
+type ANY = any;
 type DeepReadonly<T> = T extends object ? {
     readonly [K in keyof T]: DeepReadonly<T[K]>;
 } : T;
@@ -46,10 +47,41 @@ export type UsecaseDefinition<Z extends Scenes, S extends IScenario<Z>> = {
 export type UsecaseDefinitions = Record<string, UsecaseDefinition<Scenes, IScenario<Scenes>>>;
 type ScenarioConstructor<D extends UsecaseDefinitions, U extends keyof D> = new () => D[U]["scenario"];
 export interface IScenario<Z extends Scenes> {
-    authorize<D extends UsecaseDefinitions, User, A extends IActor<User>>(actor: A, usecase: keyof D): boolean;
     next(to: MutableContext<Z>): Observable<Context<Z>>;
     just(next: Context<Z>): Observable<Context<Z>>;
+    authorize?<A extends IActor<ANY>, D extends UsecaseDefinitions>(actor: A, usecase: keyof D): boolean;
+    complete?<A extends IActor<ANY>, D extends UsecaseDefinitions>(withResult: InteractResult<A, D, keyof D, Z>): void;
 }
+export declare const InteractResultType: {
+    readonly success: "success";
+    readonly failure: "failure";
+};
+type InteractResultContext<A extends IActor<ANY>, D extends UsecaseDefinitions, U extends keyof D, Z extends Scenes> = {
+    [InteractResultType.success]: {
+        actor: A;
+        usecase: U;
+        startAt: Date;
+        endAt: Date;
+        elapsedTimeMs: number;
+        performedScenario: Context<Z>[];
+    };
+    [InteractResultType.failure]: {
+        actor: A;
+        usecase: U;
+        startAt: Date;
+        endAt: Date;
+        elapsedTimeMs: number;
+        error: Error;
+    };
+};
+type InteractResultCase<A extends IActor<ANY>, D extends UsecaseDefinitions, U extends keyof D, Z extends Scenes, K extends keyof InteractResultContext<A, D, U, Z>> = Record<"result", K> & InteractResultContext<A, D, U, Z>[K];
+export type InteractResult<A extends IActor<ANY>, D extends UsecaseDefinitions, U extends keyof D, Z extends Scenes> = {
+    [K in keyof InteractResultContext<A, D, U, Z>]: InteractResultCase<A, D, U, Z, K>;
+}[keyof InteractResultContext<A, D, U, Z>];
+type InteractResultSelector<A extends IActor<ANY>, D extends UsecaseDefinitions, U extends keyof D, Z extends Scenes> = {
+    [K in keyof InteractResultContext<A, D, U, Z>]: (withValues: InteractResultContext<A, D, U, Z>[K]) => InteractResultCase<A, D, U, Z, K>;
+};
+export declare const InteractResultFactory: new <A extends IActor<any>, D extends UsecaseDefinitions, U extends keyof D, Z extends Scenes>() => InteractResultSelector<A, D, U, Z>;
 declare class Scene<D extends UsecaseDefinitions, U extends keyof D, Z extends Scenes, S extends IScenario<Z>> {
     #private;
     constructor(usecase: U, context: Context<Z>, scenario: S);
@@ -68,7 +100,6 @@ export declare abstract class BaseScenario<Z extends Scenes> implements IScenari
     alternatives: Contexts<this, Alternatives>;
     goals: Contexts<this, Goals>;
     constructor();
-    abstract authorize<D extends UsecaseDefinitions, User, A extends IActor<User>>(actor: A, usecase: keyof D): boolean;
     abstract next(to: MutableContext<Z>): Observable<Context<Z>>;
     just(next: Context<Z>): Observable<Context<Z>>;
 }

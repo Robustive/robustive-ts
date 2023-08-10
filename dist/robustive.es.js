@@ -1265,35 +1265,6 @@ function mergeMap(project, resultSelector, concurrent) {
     return mergeInternals(source, subscriber, project, concurrent);
   });
 }
-function tap(observerOrNext, error, complete) {
-  var tapObserver = isFunction(observerOrNext) || error || complete ? { next: observerOrNext, error, complete } : observerOrNext;
-  return tapObserver ? operate(function(source, subscriber) {
-    var _a;
-    (_a = tapObserver.subscribe) === null || _a === void 0 ? void 0 : _a.call(tapObserver);
-    var isUnsub = true;
-    source.subscribe(createOperatorSubscriber(subscriber, function(value) {
-      var _a2;
-      (_a2 = tapObserver.next) === null || _a2 === void 0 ? void 0 : _a2.call(tapObserver, value);
-      subscriber.next(value);
-    }, function() {
-      var _a2;
-      isUnsub = false;
-      (_a2 = tapObserver.complete) === null || _a2 === void 0 ? void 0 : _a2.call(tapObserver);
-      subscriber.complete();
-    }, function(err) {
-      var _a2;
-      isUnsub = false;
-      (_a2 = tapObserver.error) === null || _a2 === void 0 ? void 0 : _a2.call(tapObserver, err);
-      subscriber.error(err);
-    }, function() {
-      var _a2, _b;
-      if (isUnsub) {
-        (_a2 = tapObserver.unsubscribe) === null || _a2 === void 0 ? void 0 : _a2.call(tapObserver);
-      }
-      (_b = tapObserver.finalize) === null || _b === void 0 ? void 0 : _b.call(tapObserver);
-    }));
-  }) : identity;
-}
 const ContextSelector = class ContextSelector2 {
   constructor() {
     return new Proxy(this, {
@@ -1318,6 +1289,17 @@ const ContextSelector = class ContextSelector2 {
     });
   }
 };
+const InteractResultFactory = class InteractResultFactory2 {
+  constructor() {
+    return new Proxy(this, {
+      get(target, prop, receiver) {
+        return typeof prop === "string" && !(prop in target) ? (withValues) => {
+          return Object.freeze({ "result": prop, ...withValues });
+        } : Reflect.get(target, prop, receiver);
+      }
+    });
+  }
+};
 class Scene {
   constructor(usecase, context2, scenario) {
     __privateAdd(this, _usecase, void 0);
@@ -1328,18 +1310,46 @@ class Scene {
     __privateSet(this, _scenario, scenario);
   }
   interactedBy(actor, observer) {
+    const InteractResult = new InteractResultFactory();
     if (observer) {
+      const startAt = new Date();
       let subscription = null;
       subscription = this.interactedBy(actor).subscribe({
         next: (performedScenario) => {
           var _a;
           const lastSceneContext = performedScenario.slice(-1)[0];
           (_a = observer.next) == null ? void 0 : _a.call(observer, [lastSceneContext, performedScenario]);
+          if (__privateGet(this, _scenario).complete === void 0)
+            return;
+          const endAt = new Date();
+          const elapsedTimeMs = endAt.getTime() - startAt.getTime();
+          const result = InteractResult.success({
+            actor,
+            usecase: __privateGet(this, _usecase),
+            startAt,
+            endAt,
+            elapsedTimeMs,
+            performedScenario
+          });
+          __privateGet(this, _scenario).complete(result);
         },
         error: (err) => {
           var _a;
           console.error(err);
           (_a = observer.error) == null ? void 0 : _a.call(observer, err);
+          if (__privateGet(this, _scenario).complete === void 0)
+            return;
+          const endAt = new Date();
+          const elapsedTimeMs = endAt.getTime() - startAt.getTime();
+          const result = InteractResult.failure({
+            actor,
+            usecase: __privateGet(this, _usecase),
+            startAt,
+            endAt,
+            elapsedTimeMs,
+            error: err
+          });
+          __privateGet(this, _scenario).complete(result);
         },
         complete: () => {
           var _a;
@@ -1349,7 +1359,6 @@ class Scene {
       });
       return subscription;
     } else {
-      const startAt = new Date();
       const recursive = (scenario2) => {
         const lastScene = scenario2.slice(-1)[0];
         if (lastScene.course === "goals") {
@@ -1363,17 +1372,12 @@ class Scene {
           })
         );
       };
-      if (!__privateGet(this, _scenario).authorize(actor, __privateGet(this, _usecase))) {
+      if (__privateGet(this, _scenario).authorize && !__privateGet(this, _scenario).authorize(actor, __privateGet(this, _usecase))) {
         const err = new ActorNotAuthorizedToInteractIn(actor.constructor.name, __privateGet(this, _usecase));
         return throwError(() => err);
       }
       const scenario = [__privateGet(this, _context)];
-      return recursive(scenario).pipe(
-        tap((contexts) => {
-          const elapsedTime = new Date().getTime() - startAt.getTime();
-          console.info(`"${__privateGet(this, _usecase)}" takes ${elapsedTime} ms.`, contexts);
-        })
-      );
+      return recursive(scenario);
     }
   }
 }

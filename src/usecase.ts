@@ -2,6 +2,9 @@ import { Observable, Observer, of, Subscription, tap, throwError } from "rxjs";
 import { mergeMap } from "rxjs/operators";
 import { IActor } from "./actor";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ANY = any;
+
 type DeepReadonly<T> = T extends object
     ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
     : T;
@@ -78,8 +81,7 @@ export const ContextSelector = class ContextSelector {
                     return new Proxy({}, {
                         get(target, prop_scene, receiver) {
                             return ((typeof prop_scene === "string") && !(prop_scene in target))
-                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                ? (withValues: any) => {
+                                ? (withValues: ContextualValues) => {
                                     return Object.freeze({ "scene" : prop_scene, course: prop, ...withValues });
                                 }
                                 : Reflect.get(target, prop, receiver);
@@ -98,10 +100,60 @@ export type UsecaseDefinitions = Record<string, UsecaseDefinition<Scenes, IScena
 type ScenarioConstructor<D extends UsecaseDefinitions, U extends keyof D> = new () => D[U]["scenario"];
 
 export interface IScenario<Z extends Scenes> {
-    authorize<D extends UsecaseDefinitions, User, A extends IActor<User>>(actor: A, usecase: keyof D): boolean;
     next(to: MutableContext<Z>): Observable<Context<Z>>;
     just(next: Context<Z>): Observable<Context<Z>>;
+    authorize?<A extends IActor<ANY>, D extends UsecaseDefinitions>(actor: A, usecase: keyof D): boolean;
+    complete?<A extends IActor<ANY>, D extends UsecaseDefinitions>(withResult: InteractResult<A, D, keyof D, Z>): void;
 }
+
+export const InteractResultType = {
+    success: "success"
+    , failure: "failure"
+} as const;
+
+type InteractResultContext<A extends IActor<ANY>, D extends UsecaseDefinitions, U extends keyof D, Z extends Scenes> = {
+    [InteractResultType.success] : {
+        actor : A;
+        usecase : U;
+        startAt : Date;
+        endAt : Date;
+        elapsedTimeMs : number;
+        performedScenario : Context<Z>[];
+    };
+    [InteractResultType.failure] : {
+        actor : A;
+        usecase : U;
+        startAt : Date;
+        endAt : Date;
+        elapsedTimeMs : number;
+        error: Error;
+    };
+};
+
+type InteractResultCase<A extends IActor<ANY>, D extends UsecaseDefinitions, U extends keyof D, Z extends Scenes, K extends keyof InteractResultContext<A, D, U, Z>> = Record<"result", K> & InteractResultContext<A, D, U, Z>[K];
+
+export type InteractResult<A extends IActor<ANY>, D extends UsecaseDefinitions, U extends keyof D, Z extends Scenes> = { 
+    [K in keyof InteractResultContext<A, D, U, Z>] : InteractResultCase<A, D, U, Z, K>;
+}[keyof InteractResultContext<A, D, U, Z>];
+
+
+type InteractResultSelector<A extends IActor<ANY>, D extends UsecaseDefinitions, U extends keyof D, Z extends Scenes> = { 
+    [K in keyof InteractResultContext<A, D, U, Z>] : (withValues: InteractResultContext<A, D, U, Z>[K]) => InteractResultCase<A, D, U, Z, K>;
+};
+
+export const InteractResultFactory = class InteractResultFactory {
+    constructor() {
+        return new Proxy(this, {
+            get(target, prop, receiver) {
+                return ((typeof prop === "string") && !(prop in target))
+                    ? (withValues: object) => {
+                        return Object.freeze({ "result" : prop, ...withValues });
+                    }
+                    : Reflect.get(target, prop, receiver);
+            }
+        });
+    }
+} as new <A extends IActor<ANY>, D extends UsecaseDefinitions, U extends keyof D, Z extends Scenes>() => InteractResultSelector<A, D, U, Z>;
 
 class Scene<D extends UsecaseDefinitions, U extends keyof D, Z extends Scenes, S extends IScenario<Z>> {
     #usecase: U;
@@ -119,17 +171,46 @@ class Scene<D extends UsecaseDefinitions, U extends keyof D, Z extends Scenes, S
 
     // overload
     interactedBy<User, A extends IActor<User>>(actor: A, observer?: Partial<Observer<[MutableContext<Z>, Context<Z>[]]>> | null): Observable<Context<Z>[]> | Subscription {
+        const InteractResult = new InteractResultFactory<A, D, U, Z>();
+
         if (observer) {
+            const startAt = new Date();
             let subscription: Subscription | null = null;
             subscription = this.interactedBy(actor)
                 .subscribe({ 
                     next: (performedScenario: Context<Z>[]) => {
                         const lastSceneContext = performedScenario.slice(-1)[0] as MutableContext<Z>;
                         observer.next?.([lastSceneContext, performedScenario]);
+
+                        if (this.#scenario.complete === undefined) return;
+                        const endAt = new Date();
+                        const elapsedTimeMs = (endAt.getTime() - startAt.getTime());
+                        const result = InteractResult.success({
+                            actor
+                            , usecase : this.#usecase
+                            , startAt
+                            , endAt
+                            , elapsedTimeMs
+                            , performedScenario
+                        });
+                        this.#scenario.complete<A, D>(result);
                     }
                     , error: (err) => {
                         console.error(err);
                         observer.error?.(err);
+
+                        if (this.#scenario.complete === undefined) return;
+                        const endAt = new Date();
+                        const elapsedTimeMs = (endAt.getTime() - startAt.getTime());
+                        const result = InteractResult.failure({
+                            actor
+                            , usecase : this.#usecase
+                            , startAt
+                            , endAt
+                            , elapsedTimeMs
+                            , error : err
+                        });
+                        this.#scenario.complete<A, D>(result);
                     }
                     , complete: () => { 
                         subscription?.unsubscribe();
@@ -139,7 +220,7 @@ class Scene<D extends UsecaseDefinitions, U extends keyof D, Z extends Scenes, S
             return subscription;
 
         } else {
-            const startAt = new Date();
+            // const startAt = new Date();
             const recursive = (scenario: Context<Z>[]): Observable<Context<Z>[]> => {
                 const lastScene = scenario.slice(-1)[0];
                 if (lastScene.course === "goals") { // exit criteria
@@ -156,19 +237,19 @@ class Scene<D extends UsecaseDefinitions, U extends keyof D, Z extends Scenes, S
                     );
             };
     
-            if (!this.#scenario.authorize<D, User, A>(actor, this.#usecase)) {
+            if (this.#scenario.authorize && !this.#scenario.authorize<A, D>(actor, this.#usecase)) {
                 const err = new ActorNotAuthorizedToInteractIn(actor.constructor.name, this.#usecase as string);
                 return throwError(() => err);
             }
             const scenario: Context<Z>[] = [this.#context];
     
-            return recursive(scenario)
-                .pipe(
-                    tap((contexts: Context<Z>[]) => {
-                        const elapsedTime = (new Date().getTime() - startAt.getTime());
-                        console.info(`"${ this.#usecase as string }" takes ${ elapsedTime } ms.`, contexts);
-                    })
-                );
+            return recursive(scenario);
+            // .pipe(
+            //     tap((contexts: Context<Z>[]) => {
+            //         const elapsedTime = (new Date().getTime() - startAt.getTime());
+            //         console.info(`"${ this.#usecase as string }" takes ${ elapsedTime } ms.`, contexts);
+            //     })
+            // );
         }
     }
 }
@@ -190,8 +271,7 @@ const Course = class Course<D extends UsecaseDefinitions, U extends keyof D, C e
         return new Proxy(this, {
             get(target, prop, receiver) {
                 return ((typeof prop === "string") && !(prop in target))
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    ? (withValues: any) => {
+                    ? (withValues: ContextualValues) => {
                         const context = { "scene" : prop, course, ...withValues } as Context<D[U]["scenes"]>;
                         const usecaseCore = new Scene<D, U, D[U]["scenes"], D[U]["scenario"]>(usecase, context, new scenario());
                         return Object.freeze(Object.assign(usecaseCore, { "name" : usecase }));
@@ -214,9 +294,9 @@ export abstract class BaseScenario<Z extends Scenes> implements IScenario<Z> {
         this.alternatives = alternatives;
         this.goals = goals;
     }
-    abstract authorize<D extends UsecaseDefinitions, User, A extends IActor<User>>(actor: A, usecase: keyof D): boolean;
-    abstract next(to: MutableContext<Z>): Observable<Context<Z>>;
 
+    abstract next(to: MutableContext<Z>): Observable<Context<Z>>;
+    
     just(next: Context<Z>) : Observable<Context<Z>> {
         return of(next);
     }
@@ -238,13 +318,12 @@ export type UsecaseSelector<D extends UsecaseDefinitions> = {
     [U in keyof D]: (scenario: new (usecase: U, context: Context<D[U]["scenes"]>) => D[U]["scenario"]) => CourseSelector<D, U>
 };
 
-export const UsecaseSelector = class UsecaseSelector {
+export const UsecaseSelector = class UsecaseSelector<D extends UsecaseDefinitions, U extends keyof D> {
     constructor() {
         return new Proxy(this, {
             get(target, prop, receiver) {
                 return ((typeof prop === "string") && !(prop in target))
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    ? (scenario: any) => new CourseSelector(prop, scenario)
+                    ? (scenario: ScenarioConstructor<D, U>) => new CourseSelector<D, U>(prop as U, scenario)
                     : Reflect.get(target, prop, receiver);
             }
         });
