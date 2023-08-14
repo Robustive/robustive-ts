@@ -1353,7 +1353,6 @@ class Scene {
         },
         complete: () => {
           var _a;
-          subscription == null ? void 0 : subscription.unsubscribe();
           (_a = observer.complete) == null ? void 0 : _a.call(observer);
         }
       });

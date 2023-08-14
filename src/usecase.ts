@@ -213,7 +213,6 @@ class Scene<D extends UsecaseDefinitions, U extends keyof D, Z extends Scenes, S
                         this.#scenario.complete<A, D>(result);
                     }
                     , complete: () => { 
-                        subscription?.unsubscribe();
                         observer.complete?.(); 
                     } 
                 } as Partial<Observer<Context<Z>[]>>);
