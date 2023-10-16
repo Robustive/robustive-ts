@@ -1,5 +1,3 @@
-import { Observable, Observer, of, Subscription, tap, throwError } from "rxjs";
-import { mergeMap } from "rxjs/operators";
 import { IActor } from "./actor";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -100,10 +98,9 @@ export type UsecaseDefinitions = Record<string, UsecaseDefinition<Scenes, IScena
 type ScenarioConstructor<D extends UsecaseDefinitions, U extends keyof D> = new () => D[U]["scenario"];
 
 export interface IScenario<Z extends Scenes> {
-    next(to: MutableContext<Z>): Observable<Context<Z>>;
-    just(next: Context<Z>): Observable<Context<Z>>;
+    next(to: MutableContext<Z>): Promise<Context<Z>>;
+    just(next: Context<Z>): Promise<Context<Z>>;
     authorize?<A extends IActor<ANY>, D extends UsecaseDefinitions>(actor: A, usecase: keyof D): boolean;
-    complete?<A extends IActor<ANY>, D extends UsecaseDefinitions>(withResult: InteractResult<A, D, keyof D, Z>): void;
 }
 
 export const InteractResultType = {
@@ -119,6 +116,7 @@ type InteractResultContext<A extends IActor<ANY>, D extends UsecaseDefinitions, 
         endAt : Date;
         elapsedTimeMs : number;
         performedScenario : Context<Z>[];
+        lastSceneContext : MutableContext<Z>;
     };
     [InteractResultType.failure] : {
         actor : A;
@@ -130,7 +128,7 @@ type InteractResultContext<A extends IActor<ANY>, D extends UsecaseDefinitions, 
     };
 };
 
-type InteractResultCase<A extends IActor<ANY>, D extends UsecaseDefinitions, U extends keyof D, Z extends Scenes, K extends keyof InteractResultContext<A, D, U, Z>> = Record<"result", K> & InteractResultContext<A, D, U, Z>[K];
+type InteractResultCase<A extends IActor<ANY>, D extends UsecaseDefinitions, U extends keyof D, Z extends Scenes, K extends keyof InteractResultContext<A, D, U, Z>> = Record<"type", K> & InteractResultContext<A, D, U, Z>[K];
 
 export type InteractResult<A extends IActor<ANY>, D extends UsecaseDefinitions, U extends keyof D, Z extends Scenes> = { 
     [K in keyof InteractResultContext<A, D, U, Z>] : InteractResultCase<A, D, U, Z, K>;
@@ -141,13 +139,13 @@ type InteractResultSelector<A extends IActor<ANY>, D extends UsecaseDefinitions,
     [K in keyof InteractResultContext<A, D, U, Z>] : (withValues: InteractResultContext<A, D, U, Z>[K]) => InteractResultCase<A, D, U, Z, K>;
 };
 
-export const InteractResultFactory = class InteractResultFactory {
+const InteractResultFactory = class InteractResultFactory {
     constructor() {
         return new Proxy(this, {
             get(target, prop, receiver) {
                 return ((typeof prop === "string") && !(prop in target))
                     ? (withValues: object) => {
-                        return Object.freeze({ "result" : prop, ...withValues });
+                        return Object.freeze({ "type" : prop, ...withValues });
                     }
                     : Reflect.get(target, prop, receiver);
             }
@@ -166,90 +164,57 @@ class Scene<D extends UsecaseDefinitions, U extends keyof D, Z extends Scenes, S
         this.#scenario = scenario;
     }
 
-    interactedBy<User, A extends IActor<User>>(actor: A): Observable<Context<Z>[]>
-    interactedBy<User, A extends IActor<User>>(actor: A, observer: Partial<Observer<[MutableContext<Z>, Context<Z>[]]>>): Subscription
-
-    // overload
-    interactedBy<User, A extends IActor<User>>(actor: A, observer?: Partial<Observer<[MutableContext<Z>, Context<Z>[]]>> | null): Observable<Context<Z>[]> | Subscription {
+    interactedBy<User, A extends IActor<User>>(actor: A): Promise<InteractResult<A, D, U, Z>> {
+        const startAt = new Date();
         const InteractResult = new InteractResultFactory<A, D, U, Z>();
 
-        if (observer) {
-            const startAt = new Date();
-            let subscription: Subscription | null = null;
-            subscription = this.interactedBy(actor)
-                .subscribe({ 
-                    next: (performedScenario: Context<Z>[]) => {
-                        const lastSceneContext = performedScenario.slice(-1)[0] as MutableContext<Z>;
-                        observer.next?.([lastSceneContext, performedScenario]);
-
-                        if (this.#scenario.complete === undefined) return;
-                        const endAt = new Date();
-                        const elapsedTimeMs = (endAt.getTime() - startAt.getTime());
-                        const result = InteractResult.success({
-                            actor
-                            , usecase : this.#usecase
-                            , startAt
-                            , endAt
-                            , elapsedTimeMs
-                            , performedScenario
-                        });
-                        this.#scenario.complete<A, D>(result);
-                    }
-                    , error: (err) => {
-                        console.error(err);
-                        observer.error?.(err);
-
-                        if (this.#scenario.complete === undefined) return;
-                        const endAt = new Date();
-                        const elapsedTimeMs = (endAt.getTime() - startAt.getTime());
-                        const result = InteractResult.failure({
-                            actor
-                            , usecase : this.#usecase
-                            , startAt
-                            , endAt
-                            , elapsedTimeMs
-                            , error : err
-                        });
-                        this.#scenario.complete<A, D>(result);
-                    }
-                    , complete: () => { 
-                        observer.complete?.(); 
-                    } 
-                } as Partial<Observer<Context<Z>[]>>);
-            return subscription;
-
-        } else {
-            // const startAt = new Date();
-            const recursive = (scenario: Context<Z>[]): Observable<Context<Z>[]> => {
-                const lastScene = scenario.slice(-1)[0];
-                if (lastScene.course === "goals") { // exit criteria
-                    return of(scenario);
-                }
-
-                const observable = this.#scenario.next(lastScene as MutableContext<Z>);
-                return observable
-                    .pipe(
-                        mergeMap((nextScene) => {
-                            scenario.push(nextScene);
-                            return recursive(scenario);
-                        })
-                    );
-            };
-    
-            if (this.#scenario.authorize && !this.#scenario.authorize<A, D>(actor, this.#usecase)) {
-                const err = new ActorNotAuthorizedToInteractIn(actor.constructor.name, this.#usecase as string);
-                return throwError(() => err);
+        const recursive = (scenario: Context<Z>[]): Promise<Context<Z>[]> => {
+            const lastScene = scenario.slice(-1)[0];
+            if (lastScene.course === "goals") { // exit criteria
+                return Promise.resolve(scenario);
             }
-            const scenario: Context<Z>[] = [this.#context];
-    
-            return recursive(scenario);
-            // .pipe(
-            //     tap((contexts: Context<Z>[]) => {
-            //         const elapsedTime = (new Date().getTime() - startAt.getTime());
-            //         console.info(`"${ this.#usecase as string }" takes ${ elapsedTime } ms.`, contexts);
-            //     })
-            // );
+
+            return this.#scenario.next(lastScene as MutableContext<Z>)
+                .then((nextScene) => {
+                    scenario.push(nextScene);
+                    return recursive(scenario);
+                });
+        };
+
+        if (this.#scenario.authorize && !this.#scenario.authorize<A, D>(actor, this.#usecase)) {
+            const err = new ActorNotAuthorizedToInteractIn(actor.constructor.name, this.#usecase as string);
+            return Promise.reject(err);
         }
+        const scenario: Context<Z>[] = [this.#context];
+
+        return recursive(scenario)
+            .then((performedScenario) => {
+                const endAt = new Date();
+                const elapsedTimeMs = (endAt.getTime() - startAt.getTime());
+                const lastSceneContext = performedScenario.slice(-1)[0] as MutableContext<Z>;
+                return InteractResult.success({
+                    actor
+                    , usecase : this.#usecase
+                    , startAt
+                    , endAt
+                    , elapsedTimeMs
+                    , performedScenario
+                    , lastSceneContext
+                });
+            })
+            .catch((err) => {
+                console.error(err);
+                const endAt = new Date();
+                const elapsedTimeMs = (endAt.getTime() - startAt.getTime());
+                return InteractResult.failure({
+                    actor
+                    , usecase : this.#usecase
+                    , startAt
+                    , endAt
+                    , elapsedTimeMs
+                    , error : err
+                });
+            });
     }
 }
 
@@ -294,10 +259,10 @@ export abstract class BaseScenario<Z extends Scenes> implements IScenario<Z> {
         this.goals = goals;
     }
 
-    abstract next(to: MutableContext<Z>): Observable<Context<Z>>;
+    abstract next(to: MutableContext<Z>): Promise<Context<Z>>;
     
-    just(next: Context<Z>) : Observable<Context<Z>> {
-        return of(next);
+    just(next: Context<Z>) : Promise<Context<Z>> {
+        return Promise.resolve(next);
     }
 }
 
