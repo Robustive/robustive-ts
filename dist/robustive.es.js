@@ -16,7 +16,7 @@ var __privateSet = (obj, member, value, setter) => {
   setter ? setter.call(obj, value) : member.set(obj, value);
   return value;
 };
-var _usecase, _context, _scenario;
+var _domain, _usecase, _initialContext, _scenario;
 class BaseActor {
   constructor(user = null) {
     this.user = user;
@@ -64,13 +64,15 @@ const InteractResultFactory = class InteractResultFactory2 {
     });
   }
 };
-class Scene {
-  constructor(usecase, context, scenario) {
+class _Usecase {
+  constructor(domain, usecase, initialContext, scenario) {
+    __privateAdd(this, _domain, void 0);
     __privateAdd(this, _usecase, void 0);
-    __privateAdd(this, _context, void 0);
+    __privateAdd(this, _initialContext, void 0);
     __privateAdd(this, _scenario, void 0);
+    __privateSet(this, _domain, domain);
     __privateSet(this, _usecase, usecase);
-    __privateSet(this, _context, context);
+    __privateSet(this, _initialContext, initialContext);
     __privateSet(this, _scenario, scenario);
   }
   interactedBy(actor) {
@@ -86,16 +88,17 @@ class Scene {
         return recursive(scenario2);
       });
     };
-    if (__privateGet(this, _scenario).authorize && !__privateGet(this, _scenario).authorize(actor, __privateGet(this, _usecase))) {
+    if (__privateGet(this, _scenario).authorize && !__privateGet(this, _scenario).authorize(actor, __privateGet(this, _domain), __privateGet(this, _usecase))) {
       const err = new ActorNotAuthorizedToInteractIn(actor.constructor.name, __privateGet(this, _usecase));
       return Promise.reject(err);
     }
-    const scenario = [__privateGet(this, _context)];
+    const scenario = [__privateGet(this, _initialContext)];
     return recursive(scenario).then((performedScenario) => {
       const endAt = new Date();
       const elapsedTimeMs = endAt.getTime() - startAt.getTime();
       const lastSceneContext = performedScenario.slice(-1)[0];
       return InteractResult.success({
+        domain: __privateGet(this, _domain),
         actor,
         usecase: __privateGet(this, _usecase),
         startAt,
@@ -109,6 +112,7 @@ class Scene {
       const endAt = new Date();
       const elapsedTimeMs = endAt.getTime() - startAt.getTime();
       return InteractResult.failure({
+        domain: __privateGet(this, _domain),
         actor,
         usecase: __privateGet(this, _usecase),
         startAt,
@@ -119,17 +123,18 @@ class Scene {
     });
   }
 }
+_domain = new WeakMap();
 _usecase = new WeakMap();
-_context = new WeakMap();
+_initialContext = new WeakMap();
 _scenario = new WeakMap();
 const Course = class Course2 {
-  constructor(usecase, course, scenario) {
+  constructor(domain, usecase, course, scenario) {
     return new Proxy(this, {
       get(target, prop, receiver) {
         return typeof prop === "string" && !(prop in target) ? (withValues) => {
           const context = { "scene": prop, course, ...withValues };
-          const usecaseCore = new Scene(usecase, context, new scenario());
-          return Object.freeze(Object.assign(usecaseCore, { "name": usecase }));
+          const usecaseCore = new _Usecase(domain, usecase, context, new scenario());
+          return Object.freeze(Object.assign(usecaseCore, { "name": usecase, "domain": domain }));
         } : Reflect.get(target, prop, receiver);
       }
     });
@@ -147,17 +152,26 @@ class BaseScenario {
   }
 }
 class CourseSelector {
-  constructor(usecase, scenario) {
-    this.basics = new Course(usecase, "basics", scenario);
-    this.alternatives = new Course(usecase, "alternatives", scenario);
-    this.goals = new Course(usecase, "goals", scenario);
+  constructor(domain, usecase, scenario) {
+    this.basics = new Course(domain, usecase, "basics", scenario);
+    this.alternatives = new Course(domain, usecase, "alternatives", scenario);
+    this.goals = new Course(domain, usecase, "goals", scenario);
   }
 }
 const UsecaseSelector = class UsecaseSelector2 {
+  constructor(domain) {
+    return new Proxy(this, {
+      get(target, prop, receiver) {
+        return typeof prop === "string" && !(prop in target) ? (scenario) => new CourseSelector(domain, prop, scenario) : Reflect.get(target, prop, receiver);
+      }
+    });
+  }
+};
+const UsecaseSelectorOverDomain = class UsecaseSelectorOverDomain2 {
   constructor() {
     return new Proxy(this, {
       get(target, prop, receiver) {
-        return typeof prop === "string" && !(prop in target) ? (scenario) => new CourseSelector(prop, scenario) : Reflect.get(target, prop, receiver);
+        return typeof prop === "string" && !(prop in target) ? new UsecaseSelector(prop) : Reflect.get(target, prop, receiver);
       }
     });
   }
@@ -168,4 +182,4 @@ class ActorNotAuthorizedToInteractIn extends Error {
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
-export { ActorNotAuthorizedToInteractIn, BaseActor, BaseScenario, ContextSelector, InteractResultType, Nobody, UsecaseSelector, isNobody };
+export { ActorNotAuthorizedToInteractIn, BaseActor, BaseScenario, ContextSelector, InteractResultType, Nobody, UsecaseSelector, UsecaseSelectorOverDomain, isNobody };
