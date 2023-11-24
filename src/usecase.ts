@@ -96,12 +96,15 @@ export const ContextSelector = class ContextSelector {
 type UsecaseSpecification<Z extends Scenes, S extends IScenario<Z>> = { scenes: Z, scenario: S };
 type UsecaseDefinitions = Record<string, UsecaseSpecification<Scenes, IScenario<Scenes>>>;
 export type DomainRequirements = Record<string, UsecaseDefinitions>;
+
+type StringKeyof<T> = Extract<keyof T, string>;
+
 type ScenarioConstructor<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> = new () => R[D][U]["scenario"];
 
 export interface IScenario<Z extends Scenes> {
     next(to: MutableContext<Z>): Promise<Context<Z>>;
     just(next: Context<Z>): Promise<Context<Z>>;
-    authorize?<A extends IActor<ANY>, R extends DomainRequirements, D extends Extract<keyof R, string>, U extends Extract<keyof R[D], string>>(actor: A, domain: D, usecase: U): boolean;
+    authorize?<A extends IActor<ANY>, R extends DomainRequirements, D extends StringKeyof<R>, U extends StringKeyof<R[D]>>(actor: A, domain: D, usecase: U): boolean;
     complete?<A extends IActor<ANY>, R extends DomainRequirements, D extends keyof R, U extends keyof R[D]>(withResult: InteractResult<R, D, U, A, Z>): void;
 }
 
