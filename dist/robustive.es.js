@@ -64,12 +64,17 @@ const InteractResultFactory = class InteractResultFactory2 {
     });
   }
 };
+const generateId = (length) => {
+  const S = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  return Array.from(crypto.getRandomValues(new Uint8Array(length))).map((n) => S[n % S.length]).join("");
+};
 class _Usecase {
   constructor(domain, usecase, initialContext, scenario) {
     __privateAdd(this, _domain, void 0);
     __privateAdd(this, _usecase, void 0);
     __privateAdd(this, _initialContext, void 0);
     __privateAdd(this, _scenario, void 0);
+    this.id = generateId(8);
     __privateSet(this, _domain, domain);
     __privateSet(this, _usecase, usecase);
     __privateSet(this, _initialContext, initialContext);
@@ -97,9 +102,10 @@ class _Usecase {
       const endAt = new Date();
       const elapsedTimeMs = endAt.getTime() - startAt.getTime();
       const lastSceneContext = performedScenario.slice(-1)[0];
-      return InteractResult.success({
-        domain: __privateGet(this, _domain),
+      const result = InteractResult.success({
+        id: this.id,
         actor,
+        domain: __privateGet(this, _domain),
         usecase: __privateGet(this, _usecase),
         startAt,
         endAt,
@@ -107,19 +113,28 @@ class _Usecase {
         performedScenario,
         lastSceneContext
       });
+      if (__privateGet(this, _scenario).complete) {
+        __privateGet(this, _scenario).complete(result);
+      }
+      return result;
     }).catch((err) => {
       console.error(err);
       const endAt = new Date();
       const elapsedTimeMs = endAt.getTime() - startAt.getTime();
-      return InteractResult.failure({
-        domain: __privateGet(this, _domain),
+      const result = InteractResult.failure({
+        id: this.id,
         actor,
+        domain: __privateGet(this, _domain),
         usecase: __privateGet(this, _usecase),
         startAt,
         endAt,
         elapsedTimeMs,
         error: err
       });
+      if (__privateGet(this, _scenario).complete) {
+        __privateGet(this, _scenario).complete(result);
+      }
+      return result;
     });
   }
 }

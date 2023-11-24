@@ -49,7 +49,8 @@ type ScenarioConstructor<R extends DomainRequirements, D extends keyof R, U exte
 export interface IScenario<Z extends Scenes> {
     next(to: MutableContext<Z>): Promise<Context<Z>>;
     just(next: Context<Z>): Promise<Context<Z>>;
-    authorize?<A extends IActor<ANY>, R extends DomainRequirements, D extends keyof R, U extends keyof R[D]>(actor: A, domain: D, usecase: U): boolean;
+    authorize?<A extends IActor<ANY>, R extends DomainRequirements, D extends Extract<keyof R, string>, U extends Extract<keyof R[D], string>>(actor: A, domain: D, usecase: U): boolean;
+    complete?<A extends IActor<ANY>, R extends DomainRequirements, D extends keyof R, U extends keyof R[D]>(withResult: InteractResult<R, D, U, A, Z>): void;
 }
 export declare const InteractResultType: {
     readonly success: "success";
@@ -57,8 +58,9 @@ export declare const InteractResultType: {
 };
 type InteractResultContext<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], A extends IActor<ANY>, Z extends Scenes> = {
     [InteractResultType.success]: {
-        domain: D;
+        id: string;
         actor: A;
+        domain: D;
         usecase: U;
         startAt: Date;
         endAt: Date;
@@ -67,8 +69,9 @@ type InteractResultContext<R extends DomainRequirements, D extends keyof R, U ex
         lastSceneContext: MutableContext<Z>;
     };
     [InteractResultType.failure]: {
-        domain: D;
+        id: string;
         actor: A;
+        domain: D;
         usecase: U;
         startAt: Date;
         endAt: Date;
@@ -82,6 +85,7 @@ export type InteractResult<R extends DomainRequirements, D extends keyof R, U ex
 }[keyof InteractResultContext<R, D, U, A, Z>];
 declare class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], Z extends Scenes, S extends IScenario<Z>> {
     #private;
+    readonly id: string;
     constructor(domain: D, usecase: U, initialContext: Context<Z>, scenario: S);
     interactedBy<User, A extends IActor<User>>(actor: A): Promise<InteractResult<R, D, U, A, Z>>;
 }

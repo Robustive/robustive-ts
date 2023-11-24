@@ -101,7 +101,8 @@ type ScenarioConstructor<R extends DomainRequirements, D extends keyof R, U exte
 export interface IScenario<Z extends Scenes> {
     next(to: MutableContext<Z>): Promise<Context<Z>>;
     just(next: Context<Z>): Promise<Context<Z>>;
-    authorize?<A extends IActor<ANY>, R extends DomainRequirements, D extends keyof R, U extends keyof R[D]>( actor: A, domain: D,usecase: U): boolean;
+    authorize?<A extends IActor<ANY>, R extends DomainRequirements, D extends Extract<keyof R, string>, U extends Extract<keyof R[D], string>>(actor: A, domain: D, usecase: U): boolean;
+    complete?<A extends IActor<ANY>, R extends DomainRequirements, D extends keyof R, U extends keyof R[D]>(withResult: InteractResult<R, D, U, A, Z>): void;
 }
 
 export const InteractResultType = {
@@ -195,7 +196,7 @@ class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof 
                 });
         };
 
-        if (this.#scenario.authorize && !this.#scenario.authorize<A, R, D, U>(actor, this.#domain, this.#usecase)) {
+        if (this.#scenario.authorize && !this.#scenario.authorize(actor, this.#domain as Extract<D, string>, this.#usecase as Extract<U, string>)) {
             const err = new ActorNotAuthorizedToInteractIn(actor.constructor.name, this.#usecase as string);
             return Promise.reject(err);
         }
