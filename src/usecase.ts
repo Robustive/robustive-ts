@@ -79,7 +79,7 @@ export const ContextSelector = class ContextSelector {
                     return new Proxy({}, {
                         get(target, prop_scene, receiver) {
                             return ((typeof prop_scene === "string") && !(prop_scene in target))
-                                ? (withValues: ContextualValues) => {
+                                ? (withValues?: ContextualValues) => {
                                     return Object.freeze({ "scene" : prop_scene, course: prop, ...withValues });
                                 }
                                 : Reflect.get(target, prop, receiver);
@@ -111,8 +111,9 @@ export const InteractResultType = {
 
 type InteractResultContext<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], A extends IActor<ANY>, Z extends Scenes> = {
     [InteractResultType.success] : {
-        domain: D;
+        id: string;
         actor : A;
+        domain : D;
         usecase : U;
         startAt : Date;
         endAt : Date;
@@ -121,8 +122,9 @@ type InteractResultContext<R extends DomainRequirements, D extends keyof R, U ex
         lastSceneContext : MutableContext<Z>;
     };
     [InteractResultType.failure] : {
-        domain: D;
+        id: string;
         actor : A;
+        domain : D;
         usecase : U;
         startAt : Date;
         endAt : Date;
@@ -156,13 +158,20 @@ const InteractResultFactory = class InteractResultFactory {
     }
 } as new <R extends DomainRequirements, D extends keyof R, U extends keyof R[D], A extends IActor<ANY>, Z extends Scenes>() => InteractResultSelector<R, D, U, A, Z>;
 
+const generateId = (length: number) => { 
+    const S = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"; 
+    return Array.from(crypto.getRandomValues(new Uint8Array(length))).map((n)=>S[n%S.length]).join("");
+};
+
 class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], Z extends Scenes, S extends IScenario<Z>> {
+    readonly id: string;
     #domain: D;
     #usecase: U;
     #initialContext: Context<Z>;
     #scenario: S;
     
     constructor(domain: D, usecase: U, initialContext: Context<Z>, scenario: S) {
+        this.id = generateId(8);
         this.#domain = domain;
         this.#usecase = usecase;
         this.#initialContext = initialContext;
@@ -197,9 +206,10 @@ class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof 
                 const endAt = new Date();
                 const elapsedTimeMs = (endAt.getTime() - startAt.getTime());
                 const lastSceneContext = performedScenario.slice(-1)[0] as MutableContext<Z>;
-                return InteractResult.success({
-                    domain: this.#domain
+                const result = InteractResult.success({
+                    id: this.id
                     , actor
+                    , domain: this.#domain
                     , usecase : this.#usecase
                     , startAt
                     , endAt
@@ -207,20 +217,25 @@ class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof 
                     , performedScenario
                     , lastSceneContext
                 });
+                if (this.#scenario.complete) { this.#scenario.complete(result); }
+                return result;
             })
             .catch((err) => {
                 console.error(err);
                 const endAt = new Date();
                 const elapsedTimeMs = (endAt.getTime() - startAt.getTime());
-                return InteractResult.failure({
-                    domain: this.#domain
+                const result =  InteractResult.failure({
+                    id: this.id
                     , actor
+                    , domain: this.#domain
                     , usecase : this.#usecase
                     , startAt
                     , endAt
                     , elapsedTimeMs
                     , error : err
                 });
+                if (this.#scenario.complete) { this.#scenario.complete(result); }
+                return result;
             });
     }
 }
