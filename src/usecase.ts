@@ -207,7 +207,7 @@ class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof 
         };
 
         if (this.#scenario.authorize && !this.#scenario.authorize(actor, this.#domain as Extract<D, string>, this.#usecase as Extract<U, string>)) {
-            const err = new ActorNotAuthorizedToInteractIn(actor.constructor.name, this.#usecase as string);
+            const err = new ActorNotAuthorizedToInteractIn(actor, this.#domain, this.#usecase);
             return Promise.reject(err);
         }
         const scenario: Context<InferScenesInScenario<S>>[] = [this.#initialContext];
@@ -250,6 +250,8 @@ class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof 
             });
     }
 }
+
+export type Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> = Record<"name", U> & Record<"domain", D> & _Usecase<R, D, U, InferScenario<R[D][U]>>;
 
 // for making usecase as Discriminated Union, must use "keyof D" for type of name, not use "string".
 export type Course<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses> = {
@@ -339,8 +341,6 @@ export const Robustive = class Robustive<R extends DomainRequirements> {
     }
 } as new <R extends DomainRequirements>(requirements: R) => Robustive<R>;
 
-export type Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> = Record<"name", U> & Record<"domain", D> & _Usecase<R, D, U, InferScenario<R[D][U]>>;
-
 export type AllUsecases<R extends DomainRequirements, D extends keyof R> = {
     [U in keyof R[D]] : Usecase<R, D, U>
 }[keyof R[D]];
@@ -351,9 +351,8 @@ export type AllUsecasesOverDomain<R extends DomainRequirements> = {
     }[keyof R[D]]
 }[keyof R];
 
-export class ActorNotAuthorizedToInteractIn extends Error {
-    constructor(actor: string, usecase: string) {
-        super(`The actor "${ actor }" is not authorized to interact on usecase "${ usecase }".`);
-        Object.setPrototypeOf(this, new.target.prototype);
+export class ActorNotAuthorizedToInteractIn<A extends IActor<ANY>, Domain, Usecase> extends Error {
+    constructor(actor: A, domain: Domain, usecase: Usecase) {
+        super(`The actor "${ actor.constructor.name }" is not authorized to interact on usecase "${ String(usecase) }" of domain "${ String(domain) }".`);
     }
 }

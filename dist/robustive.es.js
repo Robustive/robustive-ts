@@ -94,7 +94,7 @@ class _Usecase {
       });
     };
     if (__privateGet(this, _scenario).authorize && !__privateGet(this, _scenario).authorize(actor, __privateGet(this, _domain), __privateGet(this, _usecase))) {
-      const err = new ActorNotAuthorizedToInteractIn(actor.constructor.name, __privateGet(this, _usecase));
+      const err = new ActorNotAuthorizedToInteractIn(actor, __privateGet(this, _domain), __privateGet(this, _usecase));
       return Promise.reject(err);
     }
     const scenario = [__privateGet(this, _initialContext)];
@@ -193,9 +193,8 @@ const Robustive = class Robustive2 {
   }
 };
 class ActorNotAuthorizedToInteractIn extends Error {
-  constructor(actor, usecase) {
-    super(`The actor "${actor}" is not authorized to interact on usecase "${usecase}".`);
-    Object.setPrototypeOf(this, new.target.prototype);
+  constructor(actor, domain, usecase) {
+    super(`The actor "${actor.constructor.name}" is not authorized to interact on usecase "${String(usecase)}" of domain "${String(domain)}".`);
   }
 }
 export { ActorNotAuthorizedToInteractIn, BaseActor, BaseScenario, ContextSelector, InteractResultType, Nobody, Robustive, UsecaseSelector, isNobody };
