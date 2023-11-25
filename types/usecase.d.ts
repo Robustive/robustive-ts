@@ -39,10 +39,12 @@ export declare const ContextSelector: new <S>() => {
     alternatives: Contexts<S, "alternatives">;
     goals: Contexts<S, "goals">;
 };
-export type DomainRequirements = Record<string, Record<string, IScenario<ANY>>>;
-type InferScene<T> = T extends IScenario<infer Z extends Scenes> ? Z : never;
+type UsecaseScenarios = Record<string, new () => IScenario<ANY>>;
+export type DomainRequirements = Record<string, UsecaseScenarios>;
 type StringKeyof<T> = Extract<keyof T, string>;
-type ScenarioConstructor<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> = new () => R[D][U];
+type InferScenario<T> = T extends new () => infer S ? S extends IScenario<ANY> ? S : never : never;
+type InferScenesInScenario<T> = T extends IScenario<infer Z extends Scenes> ? Z : never;
+type InferScenesInScenarioConstructor<T> = T extends new () => infer S ? S extends IScenario<infer Z> ? Z : never : never;
 export interface IScenario<Z extends Scenes> {
     next(to: MutableContext<Z>): Promise<Context<Z>>;
     just(next: Context<Z>): Promise<Context<Z>>;
@@ -83,20 +85,11 @@ export type InteractResult<R extends DomainRequirements, D extends keyof R, U ex
 declare class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], S extends IScenario<ANY>> {
     #private;
     readonly id: string;
-    constructor(domain: D, usecase: U, initialContext: Context<InferScene<S>>, scenario: S);
-    interactedBy<User, A extends IActor<User>>(actor: A): Promise<InteractResult<R, D, U, A, InferScene<S>>>;
+    constructor(domain: D, usecase: U, initialContext: Context<InferScenesInScenario<S>>, scenario: S);
+    interactedBy<User, A extends IActor<User>>(actor: A): Promise<InteractResult<R, D, U, A, InferScenesInScenario<S>>>;
 }
-export type Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> = Record<"name", U> & Record<"domain", D> & _Usecase<R, D, U, R[D][U]>;
-export type AllUsecases<R extends DomainRequirements, D extends keyof R> = {
-    [U in keyof R[D]]: Usecase<R, D, U>;
-}[keyof R[D]];
-export type AllUsecasesOverDomain<R extends DomainRequirements> = {
-    [D in keyof R]: {
-        [U in keyof R[D]]: Usecase<R, D, U>;
-    }[keyof R[D]];
-}[keyof R];
 export type Course<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses> = {
-    [K in keyof InferScene<R[D][U]>[C]]: InferScene<R[D][U]>[C][K] extends Empty ? () => Usecase<R, D, U> : (withValues: InferScene<R[D][U]>[C][K]) => Usecase<R, D, U>;
+    [K in keyof InferScenesInScenarioConstructor<R[D][U]>[C]]: InferScenesInScenarioConstructor<R[D][U]>[C][K] extends Empty ? () => Usecase<R, D, U> : (withValues: InferScenesInScenarioConstructor<R[D][U]>[C][K]) => Usecase<R, D, U>;
 };
 export declare abstract class BaseScenario<Z extends Scenes> implements IScenario<Z> {
     basics: Contexts<this, Basics>;
@@ -110,16 +103,25 @@ declare class CourseSelector<R extends DomainRequirements, D extends keyof R, U 
     basics: Course<R, D, U, Basics>;
     alternatives: Course<R, D, U, Alternatives>;
     goals: Course<R, D, U, Goals>;
-    constructor(domain: D, usecase: U, scenario: ScenarioConstructor<R, D, U>);
+    constructor(domain: D, usecase: U, scenario: new () => IScenario<ANY>);
 }
 export type UsecaseSelector<R extends DomainRequirements, D extends keyof R> = {
-    [U in keyof R[D]]: (scenario: new (usecase: U, context: Context<InferScene<R[D][U]>>) => R[D][U]) => CourseSelector<R, D, U>;
+    [U in keyof R[D]]: CourseSelector<R, D, U>;
 };
-export declare const UsecaseSelector: new <R extends DomainRequirements, D extends keyof R>(domain: D) => UsecaseSelector<R, D>;
-export type UsecaseSelectorOverDomain<R extends DomainRequirements> = {
+export declare const UsecaseSelector: new <R extends DomainRequirements, D extends keyof R>(domain: D, usecases: UsecaseScenarios) => UsecaseSelector<R, D>;
+export type Robustive<R extends DomainRequirements> = {
     [D in keyof R]: UsecaseSelector<R, D>;
 };
-export declare const UsecaseSelectorOverDomain: new <R extends DomainRequirements>() => UsecaseSelectorOverDomain<R>;
+export declare const Robustive: new <R extends DomainRequirements>(requirements: R) => Robustive<R>;
+export type Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> = Record<"name", U> & Record<"domain", D> & _Usecase<R, D, U, InferScenario<R[D][U]>>;
+export type AllUsecases<R extends DomainRequirements, D extends keyof R> = {
+    [U in keyof R[D]]: Usecase<R, D, U>;
+}[keyof R[D]];
+export type AllUsecasesOverDomain<R extends DomainRequirements> = {
+    [D in keyof R]: {
+        [U in keyof R[D]]: Usecase<R, D, U>;
+    }[keyof R[D]];
+}[keyof R];
 export declare class ActorNotAuthorizedToInteractIn extends Error {
     constructor(actor: string, usecase: string);
 }

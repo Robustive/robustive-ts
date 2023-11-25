@@ -148,7 +148,8 @@ const Course = class Course2 {
       get(target, prop, receiver) {
         return typeof prop === "string" && !(prop in target) ? (withValues) => {
           const context = { "scene": prop, course, ...withValues };
-          const usecaseCore = new _Usecase(domain, usecase, context, new scenario());
+          const s = new scenario();
+          const usecaseCore = new _Usecase(domain, usecase, context, s);
           return Object.freeze(Object.assign(usecaseCore, { "name": usecase, "domain": domain }));
         } : Reflect.get(target, prop, receiver);
       }
@@ -174,19 +175,19 @@ class CourseSelector {
   }
 }
 const UsecaseSelector = class UsecaseSelector2 {
-  constructor(domain) {
+  constructor(domain, usecases) {
     return new Proxy(this, {
       get(target, prop, receiver) {
-        return typeof prop === "string" && !(prop in target) ? (scenario) => new CourseSelector(domain, prop, scenario) : Reflect.get(target, prop, receiver);
+        return typeof prop === "string" && !(prop in target) ? new CourseSelector(domain, prop, usecases[prop]) : Reflect.get(target, prop, receiver);
       }
     });
   }
 };
-const UsecaseSelectorOverDomain = class UsecaseSelectorOverDomain2 {
-  constructor() {
+const Robustive = class Robustive2 {
+  constructor(requirements) {
     return new Proxy(this, {
       get(target, prop, receiver) {
-        return typeof prop === "string" && !(prop in target) ? new UsecaseSelector(prop) : Reflect.get(target, prop, receiver);
+        return typeof prop === "string" && !(prop in target) ? new UsecaseSelector(prop, requirements[prop]) : Reflect.get(target, prop, receiver);
       }
     });
   }
@@ -197,4 +198,4 @@ class ActorNotAuthorizedToInteractIn extends Error {
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
-export { ActorNotAuthorizedToInteractIn, BaseActor, BaseScenario, ContextSelector, InteractResultType, Nobody, UsecaseSelector, UsecaseSelectorOverDomain, isNobody };
+export { ActorNotAuthorizedToInteractIn, BaseActor, BaseScenario, ContextSelector, InteractResultType, Nobody, Robustive, UsecaseSelector, isNobody };
