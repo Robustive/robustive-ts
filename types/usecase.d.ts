@@ -28,16 +28,17 @@ export type Context<Z extends Scenes> = {
     readonly [K in keyof Flatten<Z>]: K extends `${infer C}.${infer S}` ? DeepReadonly<Flatten<Z>[K] extends Empty ? Record<"scene", S> & Record<"course", C> : Record<"scene", S> & Record<"course", C> & Flatten<Z>[K]> : never;
 }[keyof Flatten<Z>];
 export type MutableContext<Z extends Scenes> = Mutable<Context<Z>>;
-export type Contexts<S, C extends Courses> = S extends IScenario<infer Z extends Scenes> ? {
+export type Contexts<Z extends Scenes, C extends Courses> = {
     [K in keyof Z[C]]: Z[C] extends Empty ? Empty : Z[C][K] extends Empty ? () => Context<Z> : (withValues: Z[C][K]) => Context<Z>;
-} : never;
-export type ContextSelector<S> = S extends IScenario<infer Z extends Scenes> ? {
-    [C in keyof Z]: C extends Courses ? Contexts<S, C> : never;
-} : never;
-export declare const ContextSelector: new <S>() => {
-    basics: Contexts<S, "basics">;
-    alternatives: Contexts<S, "alternatives">;
-    goals: Contexts<S, "goals">;
+};
+declare const Contexts: new <Z extends Scenes, C extends "basics" | "alternatives" | "goals">(course: C) => Contexts<Z, C>;
+export type ContextSelector<Z extends Scenes> = {
+    [C in keyof Z]: C extends Courses ? Contexts<Z, C> : never;
+};
+export declare const ContextSelector: new <Z extends Scenes>() => {
+    basics: Contexts<Z, "basics">;
+    alternatives: Contexts<Z, "alternatives">;
+    goals: Contexts<Z, "goals">;
 };
 type UsecaseScenarios = Record<string, new () => IScenario<ANY>>;
 export type DomainRequirements = Record<string, UsecaseScenarios>;
@@ -93,9 +94,9 @@ export type Course<R extends DomainRequirements, D extends keyof R, U extends ke
     [K in keyof InferScenesInScenarioConstructor<R[D][U]>[C]]: InferScenesInScenarioConstructor<R[D][U]>[C][K] extends Empty ? () => Usecase<R, D, U> : (withValues: InferScenesInScenarioConstructor<R[D][U]>[C][K]) => Usecase<R, D, U>;
 };
 export declare abstract class BaseScenario<Z extends Scenes> implements IScenario<Z> {
-    basics: Contexts<this, Basics>;
-    alternatives: Contexts<this, Alternatives>;
-    goals: Contexts<this, Goals>;
+    basics: Contexts<Z, Basics>;
+    alternatives: Contexts<Z, Alternatives>;
+    goals: Contexts<Z, Goals>;
     constructor();
     abstract next(to: MutableContext<Z>): Promise<Context<Z>>;
     just(next: Context<Z>): Promise<Context<Z>>;

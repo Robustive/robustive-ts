@@ -25,21 +25,30 @@ class BaseActor {
 class Nobody extends BaseActor {
 }
 const isNobody = (actor) => actor.constructor === Nobody;
+const Contexts = class Context {
+  constructor(course) {
+    return new Proxy({}, {
+      get(target, prop, receiver) {
+        return typeof prop === "string" && !(prop in target) ? (withValues) => {
+          return Object.freeze({ "scene": prop, course, ...withValues });
+        } : Reflect.get(target, prop, receiver);
+      }
+    });
+  }
+};
 const ContextSelector = class ContextSelector2 {
   constructor() {
     return new Proxy(this, {
       get(target, prop, receiver) {
         switch (prop) {
-          case "basics":
-          case "alternatives":
+          case "basics": {
+            return new Contexts(prop);
+          }
+          case "alternatives": {
+            return new Contexts(prop);
+          }
           case "goals": {
-            return new Proxy({}, {
-              get(target2, prop_scene, receiver2) {
-                return typeof prop_scene === "string" && !(prop_scene in target2) ? (withValues) => {
-                  return Object.freeze({ "scene": prop_scene, course: prop, ...withValues });
-                } : Reflect.get(target2, prop, receiver2);
-              }
-            });
+            return new Contexts(prop);
           }
           default: {
             return Reflect.get(target, prop, receiver);

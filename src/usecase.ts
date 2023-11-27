@@ -54,44 +54,48 @@ export type Context<Z extends Scenes> = {
 
 export type MutableContext<Z extends Scenes> = Mutable<Context<Z>>;
 
-export type Contexts<S, C extends Courses> = S extends IScenario<infer Z extends Scenes> ? { 
+export type Contexts<Z extends Scenes, C extends Courses> = { 
     [K in keyof Z[C]]: Z[C] extends Empty // for empty alternatives
         ? Empty
         : Z[C][K] extends Empty
             ? () => Context<Z>
             : (withValues: Z[C][K]) => Context<Z>
-} : never;
+};
 
-export type ContextSelector<S> = S extends IScenario<infer Z extends Scenes> ? { 
+const Contexts = class Context<C extends Courses> {
+    constructor(course: C) {
+        return new Proxy({}, {
+            get(target, prop, receiver) { // prop = scene
+                return ((typeof prop === "string") && !(prop in target))
+                    ? (withValues?: ContextualValues) => {
+                        return Object.freeze({ "scene" : prop, course, ...withValues });
+                    }
+                    : Reflect.get(target, prop, receiver);
+            }
+        });
+    }
+} as new <Z extends Scenes, C extends Courses>(course: C) => Contexts<Z, C>;
+
+export type ContextSelector<Z extends Scenes> = { 
     [C in keyof Z] : C extends Courses 
-        ? Contexts<S, C> 
+        ? Contexts<Z, C> 
         : never;
-} : never;
+};
 
-export const ContextSelector = class ContextSelector {
+export const ContextSelector = class ContextSelector<Z extends Scenes> {
     constructor() {
         return new Proxy(this, {
-            get(target, prop, receiver) {
+            get(target, prop, receiver) { // prop = course
                 switch (prop) {
-                case "basics":
-                case "alternatives":
-                case "goals": {
-                    return new Proxy({}, {
-                        get(target, prop_scene, receiver) {
-                            return ((typeof prop_scene === "string") && !(prop_scene in target))
-                                ? (withValues?: ContextualValues) => {
-                                    return Object.freeze({ "scene" : prop_scene, course: prop, ...withValues });
-                                }
-                                : Reflect.get(target, prop, receiver);
-                        }
-                    });
-                }
+                case "basics": { return new Contexts<Z, Basics>(prop); }
+                case "alternatives": { return new Contexts<Z, Alternatives>(prop); }
+                case "goals": { return new Contexts<Z, Goals>(prop); }
                 default: { return Reflect.get(target, prop, receiver); }
                 }
             }
         });
     }
-} as new <S>() => { basics : Contexts<S, Basics>, alternatives : Contexts<S, Alternatives>, goals : Contexts<S, Goals> };
+} as new <Z extends Scenes>() => { basics : Contexts<Z, Basics>, alternatives : Contexts<Z, Alternatives>, goals : Contexts<Z, Goals> };
 
 type UsecaseScenarios = Record<string, new () => IScenario<ANY>>;
 export type DomainRequirements = Record<string,  UsecaseScenarios>;
@@ -265,7 +269,7 @@ const Course = class Course<R extends DomainRequirements, D extends keyof R, U e
         return new Proxy(this, {
             get(target, prop, receiver) {
                 return ((typeof prop === "string") && !(prop in target))
-                    ? (withValues: ContextualValues) => {
+                    ? (withValues?: ContextualValues) => {
                         const context = { "scene" : prop, course, ...withValues } as Context<InferScenesInScenarioConstructor<R[D][U]>>;
                         const s = new scenario();
                         const usecaseCore = new _Usecase<R, D, U, typeof s>(domain, usecase, context, s);
@@ -279,12 +283,12 @@ const Course = class Course<R extends DomainRequirements, D extends keyof R, U e
 
 // for declaring like "SomeScenario<SomeScenes>", cannot use generics paramaters "D extends UsecaseDefinitions, U extends keyof D"
 export abstract class BaseScenario<Z extends Scenes> implements IScenario<Z> {
-    basics: Contexts<this, Basics>;
-    alternatives: Contexts<this, Alternatives>;
-    goals: Contexts<this, Goals>;
+    basics: Contexts<Z, Basics>;
+    alternatives: Contexts<Z, Alternatives>;
+    goals: Contexts<Z, Goals>;
 
     constructor() {
-        const { basics, alternatives, goals } = new ContextSelector<this>();
+        const { basics, alternatives, goals } = new ContextSelector<Z>();
         this.basics = basics;
         this.alternatives = alternatives;
         this.goals = goals;
