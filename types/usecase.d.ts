@@ -28,18 +28,10 @@ export type Context<Z extends Scenes> = {
     readonly [K in keyof Flatten<Z>]: K extends `${infer C}.${infer S}` ? DeepReadonly<Flatten<Z>[K] extends Empty ? Record<"scene", S> & Record<"course", C> : Record<"scene", S> & Record<"course", C> & Flatten<Z>[K]> : never;
 }[keyof Flatten<Z>];
 export type MutableContext<Z extends Scenes> = Mutable<Context<Z>>;
-export type Contexts<Z extends Scenes, C extends Courses> = {
-    [K in keyof Z[C]]: Z[C] extends Empty ? Empty : Z[C][K] extends Empty ? () => Context<Z> : (withValues: Z[C][K]) => Context<Z>;
+type SceneFactory<Z extends Scenes, C extends Courses> = Z[C] extends Empty ? Empty : {
+    [K in keyof Z[C]]: Z[C][K] extends Empty ? () => Context<Z> : (withValues: Z[C][K]) => Context<Z>;
 };
-declare const Contexts: new <Z extends Scenes, C extends "basics" | "alternatives" | "goals">(course: C) => Contexts<Z, C>;
-export type ContextSelector<Z extends Scenes> = {
-    [C in keyof Z]: C extends Courses ? Contexts<Z, C> : never;
-};
-export declare const ContextSelector: new <Z extends Scenes>() => {
-    basics: Contexts<Z, "basics">;
-    alternatives: Contexts<Z, "alternatives">;
-    goals: Contexts<Z, "goals">;
-};
+declare const SceneFactory: new <Z extends Scenes, C extends "basics" | "alternatives" | "goals">(course: C) => SceneFactory<Z, C>;
 type UsecaseScenarios = Record<string, new () => IScenario<ANY>>;
 export type DomainRequirements = Record<string, UsecaseScenarios>;
 type StringKeyof<T> = Extract<keyof T, string>;
@@ -90,22 +82,23 @@ declare class _Usecase<R extends DomainRequirements, D extends keyof R, U extend
     interactedBy<User, A extends IActor<User>>(actor: A): Promise<InteractResult<R, D, U, A, InferScenesInScenario<S>>>;
 }
 export type Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> = Record<"name", U> & Record<"domain", D> & _Usecase<R, D, U, InferScenario<R[D][U]>>;
-export type Course<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses> = {
+type UsecaseFactory<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses> = InferScenesInScenarioConstructor<R[D][U]>[C] extends Empty ? Empty : {
     [K in keyof InferScenesInScenarioConstructor<R[D][U]>[C]]: InferScenesInScenarioConstructor<R[D][U]>[C][K] extends Empty ? () => Usecase<R, D, U> : (withValues: InferScenesInScenarioConstructor<R[D][U]>[C][K]) => Usecase<R, D, U>;
 };
+declare const UsecaseFactory: new <R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends "basics" | "alternatives" | "goals">(domain: D, usecase: U, course: C, scenario: new () => IScenario<ANY>) => UsecaseFactory<R, D, U, C>;
+declare class CourseSelector<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> {
+    basics: UsecaseFactory<R, D, U, Basics>;
+    alternatives: UsecaseFactory<R, D, U, Alternatives>;
+    goals: UsecaseFactory<R, D, U, Goals>;
+    constructor(domain: D, usecase: U, scenario: new () => IScenario<ANY>);
+}
 export declare abstract class BaseScenario<Z extends Scenes> implements IScenario<Z> {
-    basics: Contexts<Z, Basics>;
-    alternatives: Contexts<Z, Alternatives>;
-    goals: Contexts<Z, Goals>;
+    basics: SceneFactory<Z, Basics>;
+    alternatives: SceneFactory<Z, Alternatives>;
+    goals: SceneFactory<Z, Goals>;
     constructor();
     abstract next(to: MutableContext<Z>): Promise<Context<Z>>;
     just(next: Context<Z>): Promise<Context<Z>>;
-}
-declare class CourseSelector<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> {
-    basics: Course<R, D, U, Basics>;
-    alternatives: Course<R, D, U, Alternatives>;
-    goals: Course<R, D, U, Goals>;
-    constructor(domain: D, usecase: U, scenario: new () => IScenario<ANY>);
 }
 export type UsecaseSelector<R extends DomainRequirements, D extends keyof R> = {
     [U in keyof R[D]]: CourseSelector<R, D, U>;

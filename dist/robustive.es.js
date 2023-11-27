@@ -25,35 +25,13 @@ class BaseActor {
 class Nobody extends BaseActor {
 }
 const isNobody = (actor) => actor.constructor === Nobody;
-const Contexts = class Context {
+const SceneFactory = class SceneFactory2 {
   constructor(course) {
-    return new Proxy({}, {
+    return new Proxy(this, {
       get(target, prop, receiver) {
         return typeof prop === "string" && !(prop in target) ? (withValues) => {
           return Object.freeze({ "scene": prop, course, ...withValues });
         } : Reflect.get(target, prop, receiver);
-      }
-    });
-  }
-};
-const ContextSelector = class ContextSelector2 {
-  constructor() {
-    return new Proxy(this, {
-      get(target, prop, receiver) {
-        switch (prop) {
-          case "basics": {
-            return new Contexts(prop);
-          }
-          case "alternatives": {
-            return new Contexts(prop);
-          }
-          case "goals": {
-            return new Contexts(prop);
-          }
-          default: {
-            return Reflect.get(target, prop, receiver);
-          }
-        }
       }
     });
   }
@@ -151,7 +129,7 @@ _domain = new WeakMap();
 _usecase = new WeakMap();
 _initialContext = new WeakMap();
 _scenario = new WeakMap();
-const Course = class Course2 {
+const UsecaseFactory = class UsecaseFactory2 {
   constructor(domain, usecase, course, scenario) {
     return new Proxy(this, {
       get(target, prop, receiver) {
@@ -165,22 +143,21 @@ const Course = class Course2 {
     });
   }
 };
+class CourseSelector {
+  constructor(domain, usecase, scenario) {
+    this.basics = new UsecaseFactory(domain, usecase, "basics", scenario);
+    this.alternatives = new UsecaseFactory(domain, usecase, "alternatives", scenario);
+    this.goals = new UsecaseFactory(domain, usecase, "goals", scenario);
+  }
+}
 class BaseScenario {
   constructor() {
-    const { basics, alternatives, goals } = new ContextSelector();
-    this.basics = basics;
-    this.alternatives = alternatives;
-    this.goals = goals;
+    this.basics = new SceneFactory("basics");
+    this.alternatives = new SceneFactory("alternatives");
+    this.goals = new SceneFactory("goals");
   }
   just(next) {
     return Promise.resolve(next);
-  }
-}
-class CourseSelector {
-  constructor(domain, usecase, scenario) {
-    this.basics = new Course(domain, usecase, "basics", scenario);
-    this.alternatives = new Course(domain, usecase, "alternatives", scenario);
-    this.goals = new Course(domain, usecase, "goals", scenario);
   }
 }
 const UsecaseSelector = class UsecaseSelector2 {
@@ -206,4 +183,4 @@ class ActorNotAuthorizedToInteractIn extends Error {
     super(`The actor "${actor.constructor.name}" is not authorized to interact on usecase "${String(usecase)}" of domain "${String(domain)}".`);
   }
 }
-export { ActorNotAuthorizedToInteractIn, BaseActor, BaseScenario, ContextSelector, InteractResultType, Nobody, Robustive, UsecaseSelector, isNobody };
+export { ActorNotAuthorizedToInteractIn, BaseActor, BaseScenario, InteractResultType, Nobody, Robustive, UsecaseSelector, isNobody };
