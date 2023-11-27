@@ -1,7 +1,8 @@
 # Robustive-ts
 
 Robustive-ts is Reactive and OBjective USecase Transactor for TypeScript.
-It provides a way to implement usecases described as the robustness diagram as codes.
+
+Robustive framework is a framework for (1) expressing the use-case scenario shown in the robustness diagram in codes, and (2) executing them (behaving itself) according to the scenario.
 
 # Get started
 
@@ -11,9 +12,17 @@ It provides a way to implement usecases described as the robustness diagram as c
 $ yarn add robustive-ts
 ```
 
-## Describe Usecases as codes.
+## How to use
 
-Describe the usecase with robustness analysis as codes like below.
+To use the Robustive framework, define the scenarios shown in the robustness diagram as enumerated types for each scene. A scene is a situation with the content of the behavior and the context in which it takes place.
+
+A scenario is an object that has the method to execute scenes. A scenario can start execution from any scene within the scenario, recursively call the next scene to be executed based on the execution result of the previous scene, and execute scenes until the last scene. Finally it returns executed scenes as an array.
+
+Control Objects in the robustness diagram are the behavior (processing) of the system in each scene, and Entity Objects are the context (states) in that processing.
+
+### Describe Usecases as codes
+
+Define contents of behaviors like below.
 
 ```typescript
 const SignIn = {
@@ -36,9 +45,23 @@ const SignIn = {
 } as const;
 ```
 
-Describe the entities you need in each scene of the usecase.
+Define contexts of behaviors like below.
 
 ```typescript
+import type { Empty } from "robustive-ts";
+
+/**
+ *  This must be extends Scenes. 
+ * 
+ *  ```
+ *  type ContextualValues = Record<string, object>;
+ *  type Scenes = {
+ *      basics: ContextualValues;
+ *      alternatives: ContextualValues;
+ *      goals: ContextualValues;
+ *  };
+ *  ```
+ **/ 
 type SignInScenes = {
     basics : {
         [SignIn.basics.userStartsSignInProcess]: { id: string | null; password: string | null; };
@@ -54,40 +77,26 @@ type SignInScenes = {
 };
 ```
 
-In the end, describe all usecases and declare definitions like this.
+Please extend the BaseScenario abstract class and define your Scenario class for each usecase.
+
+If the scene behavior is a process performed by the system, define it as a private function in the Scenario class. If the scene has an Entity Object, use that as arguments.
+
+The return value should be a Promise that returns the Context of the next scene.
 
 ```typescript
-// This should be extends UsecaseDefinitions.
-type MyUsecaseDefinitions = {
-    boot : { scenes: BootScenes; scenario: BootScenario; };
-    signIn : { scenes: SignInScenes; scenario: SignInScenario; };
-    signUp : { scenes: SignUpScenes; scenario: SignUpScenario; };
-    signOut : { scenes: SignOutScenes; scenario: SignOutScenario; };
-    ...
-};
-
-const usecases = new UsecaseSelector<MyUsecaseDefinitions>();
-```
-
-```typescript
-import { catchError, map, Observable } from "rxjs";
+import { BaseScenario, Context } from "robustive-ts";
 
 class SignInScenario extends BaseScenario<SignInScenes> {
 
-    authorize<User, A extends IActor<User>>(actor: A, usecase: keyof MyUsecaseDefinitions): boolean {
-        // TODO
-        return true;
-    }
-
-    next(to: MutableContext<SignInScenes>): Observable<Context<SignInScenes>> {
+    next(to: MutableContext<SignInScenes>): Promise<Context<SignInScenes>> {
         switch (to.scene) {
-        case SignIn.basics.userStartsSignInProcess: {
+        case _u.basics.userStartsSignInProcess: {
             return this.just(this.basics[SignIn.basics.serviceValidateInputs]({ id: to.id, password: to.password }));
         }
-        case SignIn.basics.serviceValidateInputs: {
+        case _u.basics.serviceValidateInputs: {
             return this.validate(to.id, to.password);
         }
-        case SignIn.basics.onSuccessInValidatingThenServiceTrySigningIn: {
+        case _u.basics.onSuccessInValidatingThenServiceTrySigningIn: {
             return this.signIn(to.id, to.password);
         }
         default: {
@@ -95,8 +104,8 @@ class SignInScenario extends BaseScenario<SignInScenes> {
         }
         }
     }
-    
-    private validate(id: string | null, password: string | null): Observable<Context<SignInScenes>> {
+
+    private validate(id: string | null, password: string | null): Promise<Context<SignInScenes>> {
         // TODO: Implement UserModel so that it can validate id and password.
         const result = User.validate(id, password);
         if (result === true && id !== null && password != null) {
@@ -106,65 +115,95 @@ class SignInScenario extends BaseScenario<SignInScenes> {
         }
     }
 
-    private signIn(id: string, password: string): Observable<Context<SignInScenes>> {
+    private signIn(id: string, password: string): Promise<Context<SignInScenes>> {
         // TODO: Implement UserModel so that a user can sign in with id and password.
         return User.signIn(id, password)
-            .pipe(
-                map(userProperties => this.goals[SignIn.goals.onSuccessInSigningInThenServicePresentsHomeView]({ user: userProperties }))
-                , catchError((error: Error) => this.just(this.goals[SignIn.goals.onFailureInSigningInThenServicePresentsError]({ error })))
-            );
+            .then(userProperties => {
+                return this.just(this.goals[SignIn.goals.onSuccessInSigningInThenServicePresentsHomeView]({ user: userProperties }));
+            })
+            .catch((error: Error) => {
+                return this.just(this.goals[SignIn.goals.onFailureInSigningInThenServicePresentsError]({ error })
+            });
     }
 }
 ```
 
-item      | kind      | description
-----------|-----------|--------------------------------------------------------
-authorize | method    | a method to check if the actor can perform the usecase.
-just      | method    | use when performing the next scene.
-next      | method    | a definitions of scenario branch.
+In the end, describe domains and usecases and declare requirements like this.
+
+```typescript
+import { Robustive } from "robustive-ts";
+
+/**
+ *  This must be implement DomainRequirements.
+ * 
+ *  ```
+ *  type UsecaseScenarios = Record<string, new () => IScenario<any>>;
+ *  type DomainRequirements = Record<string,  UsecaseScenarios>;
+ *  ```
+ **/ 
+const requirements = {
+    applicationDomain : {
+        boot : BootScenario
+    }
+    , authenticationDomain : {
+        signIn : SignInScenario
+        , signUp : SignUpScenario
+        , signOut : SignOutScenario
+    }
+    ...
+};
+
+type Requirements = typeof requirements;
+const U = new Robustive(requirements);
+```
+
+item      | kind      | implement   | description
+----------|-----------|-------------|---------------------------------------------
+just      | method    | implemented | use when performing the next scene.
+next      | method    | required    | a definitions of scenario branch.
+authorize | method    | optional    | a method to check if the actor can perform the usecase.
+complete  | method    | optional    | a termination process when the usecase ends normally or abnormally.
 
 
-## Perform a Usecase
+### Perform a Usecase
 
 Describe application behaviors.
 
 ```typescript
-const signIn = (usecase: Usecase<MyUsecaseDefinitions, "signIn">, actor: Actor) => {
-    let subscription: Subscription|null = null;
-    subscription = usecase
-        .interactedBy(actor, {
-            next: (performedScenario) => {
-                next: ([lastSceneContext]) => {
-                    switch(lastSceneContext.scene){
-                    case SignIn.goals.onSuccessThenServicePresentsHomeView:
-                        // TODO: show home view.
-                        break;
+import { Usecase } from "robustive-ts";
 
-                    case SignIn.goals.onFailureInValidatingThenServicePresentsError: {
-                        // TODO: show errors.
-                        break;
-                    }
-                    case SignIn.goals.onFailureThenServicePresentsError: {
-                        // TODO: show errors.
-                        break;
-                    }
-                    }
-                }
-                , complete: () => {
-                    subscription?.unsubscribe();
-                }
+const signIn = (usecase: Usecase<Requirements, "authentication", "signIp">, actor: Actor): Promise<void> => {
+    return usecase
+        .interactedBy(actor)
+        .then(result => {
+            if (result.type !== InteractResultType.success) { return; }
+            const context = result.lastSceneContext;
+            
+            switch(context.scene){
+            case SignIn.goals.onSuccessThenServicePresentsHomeView:
+                // TODO: show home view.
+                break;
+
+            case SignIn.goals.onFailureInValidatingThenServicePresentsError: {
+                // TODO: show errors.
+                break;
+            }
+            case SignIn.goals.onFailureThenServicePresentsError: {
+                // TODO: show errors.
+                break;
+            }
+            }
         });
-}
+    });
+};
 ```
 
-## Start performing a Usecase
+### Start performing a Usecase
 
 ```typescript
-const usecases = new UsecaseSelector<MyUsecaseDefinitions>();
-
-const usecase = usecases
-                    .signIn(SignInScenario)
-                    .basics[Nobody.signIn.basics.userStartsSignInProcess]({ 
+const usecase = U.authenticationDomain
+                    .signIn
+                    .basics[SignIn.basics.userStartsSignInProcess]({ 
                         id: state.email
                         , password: state.password 
                     });
