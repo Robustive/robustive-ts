@@ -108,6 +108,7 @@ class _Usecase {
       console.error(err);
       const endAt = new Date();
       const elapsedTimeMs = endAt.getTime() - startAt.getTime();
+      const lastSceneContext = scenario.slice(-1)[0];
       const result = InteractResult.failure({
         id: this.id,
         actor,
@@ -116,6 +117,8 @@ class _Usecase {
         startAt,
         endAt,
         elapsedTimeMs,
+        performedScenario: scenario,
+        failedSceneContext: lastSceneContext,
         error: err
       });
       if (__privateGet(this, _scenario).complete) {

@@ -123,6 +123,8 @@ type InteractResultContext<R extends DomainRequirements, D extends keyof R, U ex
         startAt : Date;
         endAt : Date;
         elapsedTimeMs : number;
+        performedScenario : Context<Z>[];
+        failedSceneContext : MutableContext<Z>;
         error: Error;
     };
 };
@@ -218,6 +220,7 @@ class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof 
                 console.error(err);
                 const endAt = new Date();
                 const elapsedTimeMs = (endAt.getTime() - startAt.getTime());
+                const lastSceneContext = scenario.slice(-1)[0] as MutableContext<InferScenesInScenario<S>>;
                 const result =  InteractResult.failure({
                     id: this.id
                     , actor
@@ -226,6 +229,8 @@ class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof 
                     , startAt
                     , endAt
                     , elapsedTimeMs
+                    , performedScenario : scenario
+                    , failedSceneContext : lastSceneContext
                     , error : err
                 });
                 if (this.#scenario.complete) { this.#scenario.complete(result); }

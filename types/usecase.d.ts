@@ -68,6 +68,8 @@ type InteractResultContext<R extends DomainRequirements, D extends keyof R, U ex
         startAt: Date;
         endAt: Date;
         elapsedTimeMs: number;
+        performedScenario: Context<Z>[];
+        failedSceneContext: MutableContext<Z>;
         error: Error;
     };
 };
