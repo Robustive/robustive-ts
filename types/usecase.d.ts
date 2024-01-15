@@ -89,6 +89,7 @@ type UsecaseFactory<R extends DomainRequirements, D extends keyof R, U extends k
 };
 declare const UsecaseFactory: new <R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends "basics" | "alternatives" | "goals">(domain: D, usecase: U, course: C, scenario: new () => IScenario<ANY>) => UsecaseFactory<R, D, U, C>;
 declare class CourseSelector<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> {
+    readonly name: U;
     basics: UsecaseFactory<R, D, U, Basics>;
     alternatives: UsecaseFactory<R, D, U, Alternatives>;
     goals: UsecaseFactory<R, D, U, Goals>;

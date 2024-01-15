@@ -268,11 +268,13 @@ const UsecaseFactory = class UsecaseFactory<R extends DomainRequirements, D exte
 } as new <R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses>(domain: D, usecase: U, course: C, scenario: new () => IScenario<ANY>) => UsecaseFactory<R, D, U, C>;
 
 class CourseSelector<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> {
+    readonly name: U;
     basics: UsecaseFactory<R, D, U, Basics>;
     alternatives: UsecaseFactory<R, D, U, Alternatives>;
     goals: UsecaseFactory<R, D, U, Goals>;
 
     constructor(domain: D, usecase: U, scenario: new () => IScenario<ANY>) {
+        this.name = usecase;
         this.basics = new UsecaseFactory<R, D, U, Basics>(domain, usecase, "basics", scenario);
         this.alternatives = new UsecaseFactory<R, D, U, Alternatives>(domain, usecase, "alternatives", scenario);
         this.goals = new UsecaseFactory<R, D, U, Goals>(domain, usecase, "goals", scenario);

@@ -148,6 +148,7 @@ const UsecaseFactory = class UsecaseFactory2 {
 };
 class CourseSelector {
   constructor(domain, usecase, scenario) {
+    this.name = usecase;
     this.basics = new UsecaseFactory(domain, usecase, "basics", scenario);
     this.alternatives = new UsecaseFactory(domain, usecase, "alternatives", scenario);
     this.goals = new UsecaseFactory(domain, usecase, "goals", scenario);
