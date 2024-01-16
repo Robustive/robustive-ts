@@ -57,12 +57,30 @@ export type MutableContext<Z extends Scenes> = Mutable<Context<Z>>;
 type SceneFactory<Z extends Scenes, C extends Courses> = Z[C] extends Empty
     ? Empty // for empty alternatives
     : { 
+        [K in keyof Z[C]]: K
+    };
+
+const SceneFactory = class SceneFactory {
+    constructor() {
+        return new Proxy(this, {
+            get(target, prop, receiver) { // prop = scene
+                return ((typeof prop === "string") && !(prop in target))
+                    ? prop
+                    : Reflect.get(target, prop, receiver);
+            }
+        });
+    }
+} as new <Z extends Scenes, C extends Courses>() => SceneFactory<Z, C>;
+    
+type ContextFactory<Z extends Scenes, C extends Courses> = Z[C] extends Empty
+    ? Empty // for empty alternatives
+    : { 
         [K in keyof Z[C]]: Z[C][K] extends Empty
             ? () => Context<Z>
             : (withValues: Z[C][K]) => Context<Z>
     };
 
-const SceneFactory = class SceneFactory<C extends Courses> {
+const ContextFactory = class ContextFactory<C extends Courses> {
     constructor(course: C) {
         return new Proxy(this, {
             get(target, prop, receiver) { // prop = scene
@@ -74,10 +92,34 @@ const SceneFactory = class SceneFactory<C extends Courses> {
             }
         });
     }
-} as new <Z extends Scenes, C extends Courses>(course: C) => SceneFactory<Z, C>;
+} as new <Z extends Scenes, C extends Courses>(course: C) => ContextFactory<Z, C>;
 
 type UsecaseScenarios = Record<string, new () => IScenario<ANY>>;
 export type DomainRequirements = Record<string,  UsecaseScenarios>;
+
+type DomainKeys<R extends DomainRequirements> = {
+    [D in keyof R]: D
+};
+
+type UsecaseKeys<R extends DomainRequirements, D extends keyof R> = {
+    [U in keyof R[D]]: U
+};
+
+type SceneFactoryAdapter<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses> = InferScenesInScenarioConstructor<R[D][U]>[C] extends Empty
+    ? Empty // for Empty alternative
+    : SceneFactory<InferScenesInScenarioConstructor<R[D][U]>, C>;
+
+const SceneFactoryAdapter = class SceneFactoryAdapter {
+    constructor() {
+        return new Proxy(this, {
+            get(target, prop, receiver) { // prop = scene
+                return ((typeof prop === "string") && !(prop in target))
+                    ? prop
+                    : Reflect.get(target, prop, receiver);
+            }
+        });
+    }
+} as new <R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses>() => SceneFactoryAdapter<R, D, U, C>;
 
 type StringKeyof<T> = Extract<keyof T, string>;
 
@@ -92,6 +134,11 @@ type InferScenesInScenarioConstructor<T> = T extends new () => infer S
     : never;
 
 export interface IScenario<Z extends Scenes> {
+    keys: {
+        basics : SceneFactory<Z, Basics>;
+        alternatives : SceneFactory<Z, Alternatives>;
+        goals : SceneFactory<Z, Goals>;
+    };
     next(to: MutableContext<Z>): Promise<Context<Z>>;
     just(next: Context<Z>): Promise<Context<Z>>;
     authorize?<A extends IActor<ANY>, R extends DomainRequirements, D extends StringKeyof<R>, U extends StringKeyof<R[D]>>(actor: A, domain: D, usecase: U): boolean;
@@ -242,7 +289,7 @@ class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof 
 export type Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> = Record<"name", U> & Record<"domain", D> & _Usecase<R, D, U, InferScenario<R[D][U]>>;
 
 // for making usecase as Discriminated Union, must use "keyof D" for type of name, not use "string".
-type UsecaseFactory<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses> = InferScenesInScenarioConstructor<R[D][U]>[C] extends Empty
+type ScenarioFactory<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses> = InferScenesInScenarioConstructor<R[D][U]>[C] extends Empty
     ? Empty // for Empty alternative
     : {
         [K in keyof InferScenesInScenarioConstructor<R[D][U]>[C]]: InferScenesInScenarioConstructor<R[D][U]>[C][K] extends Empty
@@ -250,7 +297,7 @@ type UsecaseFactory<R extends DomainRequirements, D extends keyof R, U extends k
             : (withValues: InferScenesInScenarioConstructor<R[D][U]>[C][K]) => Usecase<R, D, U>
     };
 
-const UsecaseFactory = class UsecaseFactory<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses> {
+const ScenarioFactory = class ScenarioFactory<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses> {
     constructor(domain: D, usecase: U, course: C, scenario: new () => IScenario<ANY>) {
         return new Proxy(this, {
             get(target, prop, receiver) {
@@ -265,32 +312,50 @@ const UsecaseFactory = class UsecaseFactory<R extends DomainRequirements, D exte
             }
         });
     }
-} as new <R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses>(domain: D, usecase: U, course: C, scenario: new () => IScenario<ANY>) => UsecaseFactory<R, D, U, C>;
+} as new <R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses>(domain: D, usecase: U, course: C, scenario: new () => IScenario<ANY>) => ScenarioFactory<R, D, U, C>;
 
 class CourseSelector<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> {
-    readonly name: U;
-    basics: UsecaseFactory<R, D, U, Basics>;
-    alternatives: UsecaseFactory<R, D, U, Alternatives>;
-    goals: UsecaseFactory<R, D, U, Goals>;
+    readonly keys: {
+        readonly basics : SceneFactoryAdapter<R, D, U, Basics>;
+        readonly alternatives : SceneFactoryAdapter<R, D, U, Alternatives>;
+        readonly goals : SceneFactoryAdapter<R, D, U, Goals>;
+    };
+    readonly basics: ScenarioFactory<R, D, U, Basics>;
+    readonly alternatives: ScenarioFactory<R, D, U, Alternatives>;
+    readonly goals: ScenarioFactory<R, D, U, Goals>;
 
     constructor(domain: D, usecase: U, scenario: new () => IScenario<ANY>) {
-        this.name = usecase;
-        this.basics = new UsecaseFactory<R, D, U, Basics>(domain, usecase, "basics", scenario);
-        this.alternatives = new UsecaseFactory<R, D, U, Alternatives>(domain, usecase, "alternatives", scenario);
-        this.goals = new UsecaseFactory<R, D, U, Goals>(domain, usecase, "goals", scenario);
+        this.keys = {
+            basics: new SceneFactoryAdapter<R, D, U, Basics>()
+            , alternatives: new SceneFactoryAdapter<R, D, U, Alternatives>()
+            , goals: new SceneFactoryAdapter<R, D, U, Goals>()
+        };
+        this.basics = new ScenarioFactory<R, D, U, Basics>(domain, usecase, "basics", scenario);
+        this.alternatives = new ScenarioFactory<R, D, U, Alternatives>(domain, usecase, "alternatives", scenario);
+        this.goals = new ScenarioFactory<R, D, U, Goals>(domain, usecase, "goals", scenario);
     }
 }
 
 // for declaring like "SomeScenario<SomeScenes>", cannot use generics paramaters "D extends UsecaseDefinitions, U extends keyof D"
 export abstract class BaseScenario<Z extends Scenes> implements IScenario<Z> {
-    basics: SceneFactory<Z, Basics>;
-    alternatives: SceneFactory<Z, Alternatives>;
-    goals: SceneFactory<Z, Goals>;
+    readonly keys: {
+        readonly basics : SceneFactory<Z, Basics>;
+        readonly alternatives : SceneFactory<Z, Alternatives>;
+        readonly goals : SceneFactory<Z, Goals>;
+    };
+    readonly basics: ContextFactory<Z, Basics>;
+    readonly alternatives: ContextFactory<Z, Alternatives>;
+    readonly goals: ContextFactory<Z, Goals>;
 
     constructor() {
-        this.basics = new SceneFactory<Z, Basics>("basics");
-        this.alternatives = new SceneFactory<Z, Alternatives>("alternatives");
-        this.goals = new SceneFactory<Z, Goals>("goals");
+        this.keys = {
+            basics: new SceneFactory<Z, Basics>()
+            , alternatives: new SceneFactory<Z, Alternatives>()
+            , goals: new SceneFactory<Z, Goals>()
+        };
+        this.basics = new ContextFactory<Z, Basics>("basics");
+        this.alternatives = new ContextFactory<Z, Alternatives>("alternatives");
+        this.goals = new ContextFactory<Z, Goals>("goals");
     }
 
     abstract next(to: MutableContext<Z>): Promise<Context<Z>>;
@@ -300,29 +365,38 @@ export abstract class BaseScenario<Z extends Scenes> implements IScenario<Z> {
     }
 }
 
-
-export type UsecaseSelector<R extends DomainRequirements, D extends keyof R> = { 
+export type UsecaseSelector<R extends DomainRequirements, D extends keyof R> = Record<"keys", UsecaseKeys<R, D>> & { 
     [U in keyof R[D]]: CourseSelector<R, D, U>
 };
 
 export const UsecaseSelector = class UsecaseSelector<R extends DomainRequirements, D extends keyof R> {
-    constructor(domain: D, usecases: UsecaseScenarios) {
+    readonly keys: UsecaseKeys<R, D>;
+    constructor(domain: D, scenarioConstuctors: UsecaseScenarios) {
+        this.keys = Object.keys(scenarioConstuctors).reduce<Record<string, string>>((keys, usecase) => {
+            keys[usecase] = usecase;
+            return keys;
+        }, {}) as UsecaseKeys<R, D>;
         return new Proxy(this, {
-            get(target, prop, receiver) {
+            get(target, prop, receiver) { // prop = usecase
                 return ((typeof prop === "string") && !(prop in target))
-                    ? new CourseSelector<R, D, keyof UsecaseScenarios>(domain, prop, usecases[prop])
+                    ? new CourseSelector<R, D, keyof UsecaseScenarios>(domain, prop, scenarioConstuctors[prop])
                     : Reflect.get(target, prop, receiver);
             }
         });
     }
-} as new <R extends DomainRequirements, D extends keyof R>(domain: D, usecases: UsecaseScenarios) => UsecaseSelector<R, D>;
+} as new <R extends DomainRequirements, D extends keyof R>(domain: D, scenarioConstuctors: UsecaseScenarios) => UsecaseSelector<R, D>;
 
-export type Robustive<R extends DomainRequirements> = {
+export type Robustive<R extends DomainRequirements> = Record<"keys", DomainKeys<R>> & {
     [D in keyof R] : UsecaseSelector<R, D>;
 };
 
 export const Robustive = class Robustive<R extends DomainRequirements> {
+    readonly keys: DomainKeys<R>;
     constructor(requirements: R) {
+        this.keys = Object.keys(requirements).reduce<Record<string, string>>((keys, domain) => {
+            keys[domain] = domain;
+            return keys;
+        }, {}) as DomainKeys<R>;
         return new Proxy(this, {
             get(target, prop, receiver) { // prop = domain
                 return ((typeof prop === "string") && !(prop in target))

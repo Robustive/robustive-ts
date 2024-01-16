@@ -26,12 +26,30 @@ class Nobody extends BaseActor {
 }
 const isNobody = (actor) => actor.constructor === Nobody;
 const SceneFactory = class SceneFactory2 {
+  constructor() {
+    return new Proxy(this, {
+      get(target, prop, receiver) {
+        return typeof prop === "string" && !(prop in target) ? prop : Reflect.get(target, prop, receiver);
+      }
+    });
+  }
+};
+const ContextFactory = class ContextFactory2 {
   constructor(course) {
     return new Proxy(this, {
       get(target, prop, receiver) {
         return typeof prop === "string" && !(prop in target) ? (withValues) => {
           return Object.freeze({ "scene": prop, course, ...withValues });
         } : Reflect.get(target, prop, receiver);
+      }
+    });
+  }
+};
+const SceneFactoryAdapter = class SceneFactoryAdapter2 {
+  constructor() {
+    return new Proxy(this, {
+      get(target, prop, receiver) {
+        return typeof prop === "string" && !(prop in target) ? prop : Reflect.get(target, prop, receiver);
       }
     });
   }
@@ -132,7 +150,7 @@ _domain = new WeakMap();
 _usecase = new WeakMap();
 _initialContext = new WeakMap();
 _scenario = new WeakMap();
-const UsecaseFactory = class UsecaseFactory2 {
+const ScenarioFactory = class ScenarioFactory2 {
   constructor(domain, usecase, course, scenario) {
     return new Proxy(this, {
       get(target, prop, receiver) {
@@ -148,33 +166,50 @@ const UsecaseFactory = class UsecaseFactory2 {
 };
 class CourseSelector {
   constructor(domain, usecase, scenario) {
-    this.name = usecase;
-    this.basics = new UsecaseFactory(domain, usecase, "basics", scenario);
-    this.alternatives = new UsecaseFactory(domain, usecase, "alternatives", scenario);
-    this.goals = new UsecaseFactory(domain, usecase, "goals", scenario);
+    this.keys = {
+      basics: new SceneFactoryAdapter(),
+      alternatives: new SceneFactoryAdapter(),
+      goals: new SceneFactoryAdapter()
+    };
+    this.basics = new ScenarioFactory(domain, usecase, "basics", scenario);
+    this.alternatives = new ScenarioFactory(domain, usecase, "alternatives", scenario);
+    this.goals = new ScenarioFactory(domain, usecase, "goals", scenario);
   }
 }
 class BaseScenario {
   constructor() {
-    this.basics = new SceneFactory("basics");
-    this.alternatives = new SceneFactory("alternatives");
-    this.goals = new SceneFactory("goals");
+    this.keys = {
+      basics: new SceneFactory(),
+      alternatives: new SceneFactory(),
+      goals: new SceneFactory()
+    };
+    this.basics = new ContextFactory("basics");
+    this.alternatives = new ContextFactory("alternatives");
+    this.goals = new ContextFactory("goals");
   }
   just(next) {
     return Promise.resolve(next);
   }
 }
 const UsecaseSelector = class UsecaseSelector2 {
-  constructor(domain, usecases) {
+  constructor(domain, scenarioConstuctors) {
+    this.keys = Object.keys(scenarioConstuctors).reduce((keys, usecase) => {
+      keys[usecase] = usecase;
+      return keys;
+    }, {});
     return new Proxy(this, {
       get(target, prop, receiver) {
-        return typeof prop === "string" && !(prop in target) ? new CourseSelector(domain, prop, usecases[prop]) : Reflect.get(target, prop, receiver);
+        return typeof prop === "string" && !(prop in target) ? new CourseSelector(domain, prop, scenarioConstuctors[prop]) : Reflect.get(target, prop, receiver);
       }
     });
   }
 };
 const Robustive = class Robustive2 {
   constructor(requirements) {
+    this.keys = Object.keys(requirements).reduce((keys, domain) => {
+      keys[domain] = domain;
+      return keys;
+    }, {});
     return new Proxy(this, {
       get(target, prop, receiver) {
         return typeof prop === "string" && !(prop in target) ? new UsecaseSelector(prop, requirements[prop]) : Reflect.get(target, prop, receiver);
