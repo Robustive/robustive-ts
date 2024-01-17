@@ -372,13 +372,14 @@ export type UsecaseSelector<R extends DomainRequirements, D extends keyof R> = R
 export const UsecaseSelector = class UsecaseSelector<R extends DomainRequirements, D extends keyof R> {
     readonly keys: UsecaseKeys<R, D>;
     constructor(domain: D, scenarioConstuctors: UsecaseScenarios) {
-        this.keys = Object.keys(scenarioConstuctors).reduce<Record<string, string>>((keys, usecase) => {
+        const usecaseKeys = Object.keys(scenarioConstuctors);
+        this.keys = usecaseKeys.reduce<Record<string, string>>((keys, usecase) => {
             keys[usecase] = usecase;
             return keys;
         }, {}) as UsecaseKeys<R, D>;
         return new Proxy(this, {
             get(target, prop, receiver) { // prop = usecase
-                return ((typeof prop === "string") && !(prop in target))
+                return ((typeof prop === "string") && usecaseKeys.includes(prop))
                     ? new CourseSelector<R, D, keyof UsecaseScenarios>(domain, prop, scenarioConstuctors[prop])
                     : Reflect.get(target, prop, receiver);
             }
@@ -393,13 +394,14 @@ export type Robustive<R extends DomainRequirements> = Record<"keys", DomainKeys<
 export const Robustive = class Robustive<R extends DomainRequirements> {
     readonly keys: DomainKeys<R>;
     constructor(requirements: R) {
-        this.keys = Object.keys(requirements).reduce<Record<string, string>>((keys, domain) => {
+        const domainKeys = Object.keys(requirements);
+        this.keys = domainKeys.reduce<Record<string, string>>((keys, domain) => {
             keys[domain] = domain;
             return keys;
         }, {}) as DomainKeys<R>;
         return new Proxy(this, {
             get(target, prop, receiver) { // prop = domain
-                return ((typeof prop === "string") && !(prop in target))
+                return ((typeof prop === "string") && domainKeys.includes(prop))
                     ? new UsecaseSelector<R, keyof R>(prop, requirements[prop])
                     : Reflect.get(target, prop, receiver);
             }

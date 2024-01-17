@@ -193,26 +193,28 @@ class BaseScenario {
 }
 const UsecaseSelector = class UsecaseSelector2 {
   constructor(domain, scenarioConstuctors) {
-    this.keys = Object.keys(scenarioConstuctors).reduce((keys, usecase) => {
+    const usecaseKeys = Object.keys(scenarioConstuctors);
+    this.keys = usecaseKeys.reduce((keys, usecase) => {
       keys[usecase] = usecase;
       return keys;
     }, {});
     return new Proxy(this, {
       get(target, prop, receiver) {
-        return typeof prop === "string" && !(prop in target) ? new CourseSelector(domain, prop, scenarioConstuctors[prop]) : Reflect.get(target, prop, receiver);
+        return typeof prop === "string" && usecaseKeys.includes(prop) ? new CourseSelector(domain, prop, scenarioConstuctors[prop]) : Reflect.get(target, prop, receiver);
       }
     });
   }
 };
 const Robustive = class Robustive2 {
   constructor(requirements) {
-    this.keys = Object.keys(requirements).reduce((keys, domain) => {
+    const domainKeys = Object.keys(requirements);
+    this.keys = domainKeys.reduce((keys, domain) => {
       keys[domain] = domain;
       return keys;
     }, {});
     return new Proxy(this, {
       get(target, prop, receiver) {
-        return typeof prop === "string" && !(prop in target) ? new UsecaseSelector(prop, requirements[prop]) : Reflect.get(target, prop, receiver);
+        return typeof prop === "string" && domainKeys.includes(prop) ? new UsecaseSelector(prop, requirements[prop]) : Reflect.get(target, prop, receiver);
       }
     });
   }
