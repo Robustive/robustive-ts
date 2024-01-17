@@ -100,7 +100,12 @@ declare class _Usecase<R extends DomainRequirements, D extends keyof R, U extend
     constructor(domain: D, usecase: U, initialContext: Context<InferScenesInScenario<S>>, scenario: S);
     interactedBy<User, A extends IActor<User>>(actor: A): Promise<InteractResult<R, D, U, A, InferScenesInScenario<S>>>;
 }
-export type Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> = Record<"name", U> & Record<"domain", D> & _Usecase<R, D, U, InferScenario<R[D][U]>>;
+export type Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> = {
+    "domain": D;
+    "name": U;
+    "course": Courses;
+    "scene": string;
+} & _Usecase<R, D, U, InferScenario<R[D][U]>>;
 type ScenarioFactory<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses> = InferScenesInScenarioConstructor<R[D][U]>[C] extends Empty ? Empty : {
     [K in keyof InferScenesInScenarioConstructor<R[D][U]>[C]]: InferScenesInScenarioConstructor<R[D][U]>[C][K] extends Empty ? () => Usecase<R, D, U> : (withValues: InferScenesInScenarioConstructor<R[D][U]>[C][K]) => Usecase<R, D, U>;
 };

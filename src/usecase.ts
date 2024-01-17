@@ -286,7 +286,12 @@ class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof 
     }
 }
 
-export type Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> = Record<"name", U> & Record<"domain", D> & _Usecase<R, D, U, InferScenario<R[D][U]>>;
+export type Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> = { 
+    "domain": D;
+    "name" : U;
+    "course": Courses;
+    "scene": string;
+} & _Usecase<R, D, U, InferScenario<R[D][U]>>;
 
 // for making usecase as Discriminated Union, must use "keyof D" for type of name, not use "string".
 type ScenarioFactory<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses> = InferScenesInScenarioConstructor<R[D][U]>[C] extends Empty
@@ -306,7 +311,7 @@ const ScenarioFactory = class ScenarioFactory<R extends DomainRequirements, D ex
                         const context = { "scene" : prop, course, ...withValues } as Context<InferScenesInScenarioConstructor<R[D][U]>>;
                         const s = new scenario();
                         const usecaseCore = new _Usecase<R, D, U, typeof s>(domain, usecase, context, s);
-                        return Object.freeze(Object.assign(usecaseCore, { "name" : usecase, "domain": domain }));
+                        return Object.freeze(Object.assign(usecaseCore, { "domain": domain, "name" : usecase, "scene": prop, course }));
                     }
                     : Reflect.get(target, prop, receiver);
             }

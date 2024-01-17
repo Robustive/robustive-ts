@@ -158,7 +158,7 @@ const ScenarioFactory = class ScenarioFactory2 {
           const context = { "scene": prop, course, ...withValues };
           const s = new scenario();
           const usecaseCore = new _Usecase(domain, usecase, context, s);
-          return Object.freeze(Object.assign(usecaseCore, { "name": usecase, "domain": domain }));
+          return Object.freeze(Object.assign(usecaseCore, { "domain": domain, "name": usecase, "scene": prop, course }));
         } : Reflect.get(target, prop, receiver);
       }
     });
