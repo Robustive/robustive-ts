@@ -1,11 +1,5 @@
 import { IActor } from "./actor";
 type ANY = any;
-type DeepReadonly<T> = T extends object ? {
-    readonly [K in keyof T]: DeepReadonly<T[K]>;
-} : T;
-type Mutable<T> = T extends object ? {
-    -readonly [K in keyof T]: Mutable<T[K]>;
-} : T;
 type PreFlatten<Z> = {
     [C in keyof Z as C extends string ? Z[C] extends Empty ? never : `${C}.${keyof Z[C] & string}` : C]: Z[C];
 };
@@ -25,9 +19,14 @@ export type Scenes = {
     goals: ContextualValues;
 };
 export type Context<Z extends Scenes> = {
-    readonly [K in keyof Flatten<Z>]: K extends `${infer C}.${infer S}` ? DeepReadonly<Flatten<Z>[K] extends Empty ? Record<"scene", S> & Record<"course", C> : Record<"scene", S> & Record<"course", C> & Flatten<Z>[K]> : never;
+    readonly [K in keyof Flatten<Z>]: K extends `${infer C}.${infer S}` ? Flatten<Z>[K] extends Empty ? {
+        scene: S;
+        course: C;
+    } : {
+        scene: S;
+        course: C;
+    } & Flatten<Z>[K] : never;
 }[keyof Flatten<Z>];
-export type MutableContext<Z extends Scenes> = Mutable<Context<Z>>;
 type SceneFactory<Z extends Scenes, C extends Courses> = Z[C] extends Empty ? Empty : {
     [K in keyof Z[C]]: K;
 };
@@ -56,7 +55,7 @@ export interface IScenario<Z extends Scenes> {
         alternatives: SceneFactory<Z, Alternatives>;
         goals: SceneFactory<Z, Goals>;
     };
-    next(to: MutableContext<Z>): Promise<Context<Z>>;
+    next(to: Context<Z>): Promise<Context<Z>>;
     just(next: Context<Z>): Promise<Context<Z>>;
     authorize?<A extends IActor<ANY>, R extends DomainRequirements, D extends StringKeyof<R>, U extends StringKeyof<R[D]>>(actor: A, domain: D, usecase: U): boolean;
     complete?<A extends IActor<ANY>, R extends DomainRequirements, D extends keyof R, U extends keyof R[D]>(withResult: InteractResult<R, D, U, A, Z>): void;
@@ -75,7 +74,7 @@ type InteractResultContext<R extends DomainRequirements, D extends keyof R, U ex
         endAt: Date;
         elapsedTimeMs: number;
         performedScenario: Context<Z>[];
-        lastSceneContext: MutableContext<Z>;
+        lastSceneContext: Context<Z>;
     };
     [InteractResultType.failure]: {
         id: string;
@@ -86,7 +85,7 @@ type InteractResultContext<R extends DomainRequirements, D extends keyof R, U ex
         endAt: Date;
         elapsedTimeMs: number;
         performedScenario: Context<Z>[];
-        failedSceneContext: MutableContext<Z>;
+        failedSceneContext: Context<Z>;
         error: Error;
     };
 };
@@ -131,7 +130,7 @@ export declare abstract class BaseScenario<Z extends Scenes> implements IScenari
     readonly alternatives: ContextFactory<Z, Alternatives>;
     readonly goals: ContextFactory<Z, Goals>;
     constructor();
-    abstract next(to: MutableContext<Z>): Promise<Context<Z>>;
+    abstract next(to: Context<Z>): Promise<Context<Z>>;
     just(next: Context<Z>): Promise<Context<Z>>;
 }
 export type UsecaseSelector<R extends DomainRequirements, D extends keyof R> = Record<"keys", UsecaseKeys<R, D>> & {

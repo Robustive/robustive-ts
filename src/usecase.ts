@@ -3,14 +3,6 @@ import { IActor } from "./actor";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ANY = any;
 
-type DeepReadonly<T> = T extends object
-    ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
-    : T;
-
-type Mutable<T> = T extends object
-    ? { -readonly [K in keyof T]: Mutable<T[K]> }
-    : T;
-
 type PreFlatten<Z> = {
     [C in keyof Z as C extends string 
         ? Z[C] extends Empty // for empty alternatives
@@ -46,13 +38,11 @@ export type Scenes = {
 // Convert Scenes into Discriminated Union like { scene: "...", ... }
 export type Context<Z extends Scenes> = {
     readonly [K in keyof Flatten<Z>]: K extends `${ infer C }.${ infer S }` 
-        ? DeepReadonly<Flatten<Z>[K] extends Empty
-            ? Record<"scene", S> & Record<"course", C>
-            : Record<"scene", S> & Record<"course", C> & Flatten<Z>[K]>
+        ? Flatten<Z>[K] extends Empty
+            ? { scene: S; course: C; }
+            : { scene: S; course: C; } & Flatten<Z>[K]
         : never 
 }[keyof Flatten<Z>];
-
-export type MutableContext<Z extends Scenes> = Mutable<Context<Z>>;
 
 type SceneFactory<Z extends Scenes, C extends Courses> = Z[C] extends Empty
     ? Empty // for empty alternatives
@@ -139,7 +129,7 @@ export interface IScenario<Z extends Scenes> {
         alternatives : SceneFactory<Z, Alternatives>;
         goals : SceneFactory<Z, Goals>;
     };
-    next(to: MutableContext<Z>): Promise<Context<Z>>;
+    next(to: Context<Z>): Promise<Context<Z>>;
     just(next: Context<Z>): Promise<Context<Z>>;
     authorize?<A extends IActor<ANY>, R extends DomainRequirements, D extends StringKeyof<R>, U extends StringKeyof<R[D]>>(actor: A, domain: D, usecase: U): boolean;
     complete?<A extends IActor<ANY>, R extends DomainRequirements, D extends keyof R, U extends keyof R[D]>(withResult: InteractResult<R, D, U, A, Z>): void;
@@ -160,7 +150,7 @@ type InteractResultContext<R extends DomainRequirements, D extends keyof R, U ex
         endAt : Date;
         elapsedTimeMs : number;
         performedScenario : Context<Z>[];
-        lastSceneContext : MutableContext<Z>;
+        lastSceneContext :Context<Z>;
     };
     [InteractResultType.failure] : {
         id: string;
@@ -171,7 +161,7 @@ type InteractResultContext<R extends DomainRequirements, D extends keyof R, U ex
         endAt : Date;
         elapsedTimeMs : number;
         performedScenario : Context<Z>[];
-        failedSceneContext : MutableContext<Z>;
+        failedSceneContext : Context<Z>;
         error: Error;
     };
 };
@@ -231,7 +221,7 @@ class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof 
                 return Promise.resolve(scenario);
             }
 
-            return this.#scenario.next(lastScene as MutableContext<InferScenesInScenario<S>>)
+            return this.#scenario.next(lastScene)
                 .then((nextScene) => {
                     scenario.push(nextScene);
                     return recursive(scenario);
@@ -248,7 +238,7 @@ class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof 
             .then((performedScenario) => {
                 const endAt = new Date();
                 const elapsedTimeMs = (endAt.getTime() - startAt.getTime());
-                const lastSceneContext = performedScenario.slice(-1)[0] as MutableContext<InferScenesInScenario<S>>;
+                const lastSceneContext = performedScenario.slice(-1)[0];
                 const result = InteractResult.success({
                     id: this.id
                     , actor
@@ -267,7 +257,7 @@ class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof 
                 console.error(err);
                 const endAt = new Date();
                 const elapsedTimeMs = (endAt.getTime() - startAt.getTime());
-                const lastSceneContext = scenario.slice(-1)[0] as MutableContext<InferScenesInScenario<S>>;
+                const lastSceneContext = scenario.slice(-1)[0];
                 const result =  InteractResult.failure({
                     id: this.id
                     , actor
@@ -363,7 +353,7 @@ export abstract class BaseScenario<Z extends Scenes> implements IScenario<Z> {
         this.goals = new ContextFactory<Z, Goals>("goals");
     }
 
-    abstract next(to: MutableContext<Z>): Promise<Context<Z>>;
+    abstract next(to: Context<Z>): Promise<Context<Z>>;
     
     just(next: Context<Z>) : Promise<Context<Z>> {
         return Promise.resolve(next);
