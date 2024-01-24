@@ -86,7 +86,7 @@ const ContextFactory = class ContextFactory<C extends Courses> {
             get(target, prop, receiver) { // prop = scene
                 return ((typeof prop === "string") && !(prop in target))
                     ? (withValues?: ContextualValues) => {
-                        return Object.freeze({ "scene" : prop, course, ...withValues });
+                        return Object.freeze(Object.assign(withValues || {}, { "scene" : prop, course }));
                     }
                     : Reflect.get(target, prop, receiver);
             }
@@ -193,7 +193,7 @@ const InteractResultFactory = class InteractResultFactory {
             get(target, prop, receiver) {
                 return ((typeof prop === "string") && !(prop in target))
                     ? (withValues: object) => {
-                        return Object.freeze({ "type" : prop, ...withValues });
+                        return Object.freeze(Object.assign(withValues, { "type" : prop }));
                     }
                     : Reflect.get(target, prop, receiver);
             }
@@ -308,7 +308,7 @@ const ScenarioFactory = class ScenarioFactory<R extends DomainRequirements, D ex
             get(target, prop, receiver) {
                 return ((typeof prop === "string") && !(prop in target))
                     ? (withValues?: ContextualValues) => {
-                        const context = { "scene" : prop, course, ...withValues } as Context<InferScenesInScenarioConstructor<R[D][U]>>;
+                        const context = Object.assign(withValues || {}, { "scene" : prop, course }) as Context<InferScenesInScenarioConstructor<R[D][U]>>;
                         const s = new scenario();
                         const usecaseCore = new _Usecase<R, D, U, typeof s>(domain, usecase, context, s);
                         return Object.freeze(Object.assign(usecaseCore, { "domain": domain, "name" : usecase, "scene": prop, course }));

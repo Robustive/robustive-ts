@@ -39,7 +39,7 @@ const ContextFactory = class ContextFactory2 {
     return new Proxy(this, {
       get(target, prop, receiver) {
         return typeof prop === "string" && !(prop in target) ? (withValues) => {
-          return Object.freeze({ "scene": prop, course, ...withValues });
+          return Object.freeze(Object.assign(withValues || {}, { "scene": prop, course }));
         } : Reflect.get(target, prop, receiver);
       }
     });
@@ -63,7 +63,7 @@ const InteractResultFactory = class InteractResultFactory2 {
     return new Proxy(this, {
       get(target, prop, receiver) {
         return typeof prop === "string" && !(prop in target) ? (withValues) => {
-          return Object.freeze({ "type": prop, ...withValues });
+          return Object.freeze(Object.assign(withValues, { "type": prop }));
         } : Reflect.get(target, prop, receiver);
       }
     });
@@ -155,7 +155,7 @@ const ScenarioFactory = class ScenarioFactory2 {
     return new Proxy(this, {
       get(target, prop, receiver) {
         return typeof prop === "string" && !(prop in target) ? (withValues) => {
-          const context = { "scene": prop, course, ...withValues };
+          const context = Object.assign(withValues || {}, { "scene": prop, course });
           const s = new scenario();
           const usecaseCore = new _Usecase(domain, usecase, context, s);
           return Object.freeze(Object.assign(usecaseCore, { "domain": domain, "name": usecase, "scene": prop, course }));
