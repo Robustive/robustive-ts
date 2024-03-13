@@ -1,10 +1,10 @@
-"use strict";
-const path = require("path");
-const { defineConfig } = require("vite");
-module.exports = defineConfig({
+import { resolve } from "path";
+import { defineConfig } from "vite";
+
+export default defineConfig({
     build: {
         lib: {
-            entry: path.resolve(__dirname, "src/index.ts"),
+            entry: resolve(__dirname, "src/index.ts"),
             name: "Robustive",
             fileName: (format) => `robustive.${format}.js`
         },
