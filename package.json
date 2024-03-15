@@ -7,12 +7,18 @@
   "types": "./types/index.d.ts",
   "files": [
     "/dist",
-    "/type"
+    "/types"
   ],
   "exports": {
     ".": {
-      "import": "./dist/robustive.es.js",
-      "require": "./dist/robustive.umd.js"
+      "import": {
+        "types": "./types/index.d.ts",
+        "default": "./dist/robustive.es.js"
+      },
+      "require": {
+        "types": "./types/index.d.ts",
+        "default": "./dist/robustive.umd.js"
+      }
     }
   },
   "scripts": {
