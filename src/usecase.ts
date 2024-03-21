@@ -84,7 +84,7 @@ const ContextFactory = class ContextFactory<C extends Courses> {
     }
 } as new <Z extends Scenes, C extends Courses>(course: C) => ContextFactory<Z, C>;
 
-type UsecaseScenarios<D> = { [usecase: string] : new (domain: D) => IScenario<ANY> };
+type UsecaseScenarios<D> = { [usecase: string] : new (domain: D, usecase: string) => IScenario<ANY> };
 export type DomainRequirements = { [domain: string] :  UsecaseScenarios<ANY> };
 
 type DomainKeys<R extends DomainRequirements> = {
@@ -113,18 +113,19 @@ const SceneFactoryAdapter = class SceneFactoryAdapter {
 
 type StringKeyof<T> = Extract<keyof T, string>;
 
-type InferScenario<T> = T extends new (domain: string) => infer S
+type InferScenario<T> = T extends new (domain: string, usecase: string) => infer S
     ? S extends IScenario<ANY> ? S : never
     : never;
 
 type InferScenesInScenario<T> = T extends IScenario<infer Z extends Scenes> ? Z : never;
 
-type InferScenesInScenarioConstructor<T> = T extends new (domain: string) => infer S
+type InferScenesInScenarioConstructor<T> = T extends new (domain: string, usecase: string) => infer S
     ? S extends IScenario<infer Z> ? Z : never
     : never;
 
 export interface IScenario<Z extends Scenes> {
     domain: string;
+    usecase: string;
     keys: {
         basics : SceneFactory<Z, Basics>;
         alternatives : SceneFactory<Z, Alternatives>;
@@ -294,13 +295,13 @@ type ScenarioFactory<R extends DomainRequirements, D extends keyof R, U extends 
     };
 
 const ScenarioFactory = class ScenarioFactory<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses> {
-    constructor(domain: D, usecase: U, course: C, scenario: new (odmain: D) => IScenario<ANY>) {
+    constructor(domain: D, usecase: U, course: C, scenario: new (odmain: D, usecase: U) => IScenario<ANY>) {
         return new Proxy(this, {
             get(target, prop, receiver) {
                 return ((typeof prop === "string") && !(prop in target))
                     ? (withValues?: ContextualValues) => {
                         const context = Object.assign(withValues || {}, { "scene" : prop, course }) as Context<InferScenesInScenarioConstructor<R[D][U]>>;
-                        const s = new scenario(domain);
+                        const s = new scenario(domain, usecase);
                         const usecaseCore = new _Usecase<R, D, U, typeof s>(domain, usecase, context, s);
                         return Object.freeze(Object.assign(usecaseCore, { "domain": domain, "name" : usecase, "scene": prop, course }));
                     }
@@ -308,7 +309,7 @@ const ScenarioFactory = class ScenarioFactory<R extends DomainRequirements, D ex
             }
         });
     }
-} as new <R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses>(domain: D, usecase: U, course: C, scenario: new (domain: D) => IScenario<ANY>) => ScenarioFactory<R, D, U, C>;
+} as new <R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses>(domain: D, usecase: U, course: C, scenario: new (domain: D, usecase: U) => IScenario<ANY>) => ScenarioFactory<R, D, U, C>;
 
 class CourseSelector<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> {
     readonly keys: {
@@ -320,7 +321,7 @@ class CourseSelector<R extends DomainRequirements, D extends keyof R, U extends 
     readonly alternatives: ScenarioFactory<R, D, U, Alternatives>;
     readonly goals: ScenarioFactory<R, D, U, Goals>;
 
-    constructor(domain: D, usecase: U, scenario: new (domain: D) => IScenario<ANY>) {
+    constructor(domain: D, usecase: U, scenario: new (domain: D, usecase: U) => IScenario<ANY>) {
         this.keys = {
             basics: new SceneFactoryAdapter<R, D, U, Basics>()
             , alternatives: new SceneFactoryAdapter<R, D, U, Alternatives>()
@@ -335,6 +336,7 @@ class CourseSelector<R extends DomainRequirements, D extends keyof R, U extends 
 // for declaring like "SomeScenario<SomeScenes>", cannot use generics paramaters "D extends UsecaseDefinitions, U extends keyof D"
 export abstract class BaseScenario<Z extends Scenes> implements IScenario<Z> {
     readonly domain: string;
+    readonly usecase: string;
     readonly keys: {
         readonly basics : SceneFactory<Z, Basics>;
         readonly alternatives : SceneFactory<Z, Alternatives>;
@@ -344,8 +346,9 @@ export abstract class BaseScenario<Z extends Scenes> implements IScenario<Z> {
     readonly alternatives: ContextFactory<Z, Alternatives>;
     readonly goals: ContextFactory<Z, Goals>;
 
-    constructor(domain: string) {
+    constructor(domain: string, usecase: string) {
         this.domain = domain;
+        this.usecase = usecase;
         this.keys = {
             basics: new SceneFactory<Z, Basics>()
             , alternatives: new SceneFactory<Z, Alternatives>()
@@ -378,7 +381,7 @@ export const UsecaseSelector = class UsecaseSelector<R extends DomainRequirement
         return new Proxy(this, {
             get(target, prop, receiver) { // prop = usecase
                 return ((typeof prop === "string") && usecaseKeys.includes(prop))
-                    ? new CourseSelector<R, D, keyof UsecaseScenarios<D>>(domain, prop, scenarioConstuctors[prop])
+                    ? new CourseSelector<R, D, StringKeyof<UsecaseScenarios<D>>>(domain, prop, scenarioConstuctors[prop])
                     : Reflect.get(target, prop, receiver);
             }
         });
