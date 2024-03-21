@@ -74,16 +74,23 @@ const generateId = (length) => {
   return Array.from(crypto.getRandomValues(new Uint8Array(length))).map((n) => S[n % S.length]).join("");
 };
 class _Usecase {
-  constructor(domain, usecase, initialContext, scenario) {
+  constructor(id, domain, usecase, initialContext, scenario) {
     __privateAdd(this, _domain, void 0);
     __privateAdd(this, _usecase, void 0);
     __privateAdd(this, _initialContext, void 0);
     __privateAdd(this, _scenario, void 0);
-    this.id = generateId(8);
+    this.id = id;
     __privateSet(this, _domain, domain);
     __privateSet(this, _usecase, usecase);
     __privateSet(this, _initialContext, initialContext);
     __privateSet(this, _scenario, scenario);
+  }
+  progress(actor) {
+    if (__privateGet(this, _scenario).authorize && !__privateGet(this, _scenario).authorize(actor, __privateGet(this, _domain), __privateGet(this, _usecase))) {
+      const err = new ActorNotAuthorizedToInteractIn(actor, __privateGet(this, _domain), __privateGet(this, _usecase));
+      return Promise.reject(err);
+    }
+    return __privateGet(this, _scenario).next(__privateGet(this, _initialContext));
   }
   interactedBy(actor) {
     const startAt = new Date();
@@ -154,10 +161,11 @@ const ScenarioFactory = class ScenarioFactory2 {
   constructor(domain, usecase, course, scenario) {
     return new Proxy(this, {
       get(target, prop, receiver) {
-        return typeof prop === "string" && !(prop in target) ? (withValues) => {
+        return typeof prop === "string" && !(prop in target) ? (withValues, id, isSubstitute = false) => {
           const context = Object.assign(withValues || {}, { "scene": prop, course });
-          const s = new scenario(domain, usecase);
-          const usecaseCore = new _Usecase(domain, usecase, context, s);
+          const _id = id || generateId(8);
+          const s = new scenario(domain, usecase, _id, isSubstitute);
+          const usecaseCore = new _Usecase(_id, domain, usecase, context, s);
           return Object.freeze(Object.assign(usecaseCore, { "domain": domain, "name": usecase, "scene": prop, course }));
         } : Reflect.get(target, prop, receiver);
       }
@@ -177,9 +185,11 @@ class CourseSelector {
   }
 }
 class BaseScenario {
-  constructor(domain, usecase) {
+  constructor(domain, usecase, id, isSubstitute = false) {
     this.domain = domain;
     this.usecase = usecase;
+    this.id = id;
+    this.isSubstitute = isSubstitute;
     this.keys = {
       basics: new SceneFactory(),
       alternatives: new SceneFactory(),
