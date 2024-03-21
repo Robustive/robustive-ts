@@ -156,7 +156,7 @@ const ScenarioFactory = class ScenarioFactory2 {
       get(target, prop, receiver) {
         return typeof prop === "string" && !(prop in target) ? (withValues) => {
           const context = Object.assign(withValues || {}, { "scene": prop, course });
-          const s = new scenario();
+          const s = new scenario(domain);
           const usecaseCore = new _Usecase(domain, usecase, context, s);
           return Object.freeze(Object.assign(usecaseCore, { "domain": domain, "name": usecase, "scene": prop, course }));
         } : Reflect.get(target, prop, receiver);
@@ -177,7 +177,8 @@ class CourseSelector {
   }
 }
 class BaseScenario {
-  constructor() {
+  constructor(domain) {
+    this.domain = domain;
     this.keys = {
       basics: new SceneFactory(),
       alternatives: new SceneFactory(),
