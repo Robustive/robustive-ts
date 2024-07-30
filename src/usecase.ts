@@ -84,7 +84,7 @@ const ContextFactory = class ContextFactory<C extends Courses> {
     }
 } as new <Z extends Scenes, C extends Courses>(course: C) => ContextFactory<Z, C>;
 
-type UsecaseScenarios<D extends string> = { [U in string] : new (domain: D, usecase: U, id: string, isSubstitute: boolean) => IScenario<NOCARE> };
+type UsecaseScenarios<D extends string> = { [U in string] : new (domain: D, usecase: U, id: string, isSubstitute: boolean) => Scenario<NOCARE> };
 export type DomainRequirements = { [D in string] :  UsecaseScenarios<D> };
 
 type DomainKeys<R extends DomainRequirements> = {
@@ -114,37 +114,76 @@ const SceneFactoryAdapter = class SceneFactoryAdapter {
 export type StringKeyof<T> = Extract<keyof T, string>;
 
 type InferScenario<T> = T extends abstract new (domain: string, usecase: string, id: string, isSubstitute: boolean) => infer S
-    ? S extends IScenario<NOCARE> ? S : never
+    ? S extends Scenario<NOCARE> ? S : never
     : never;
 
-type InferScenesInScenario<T> = T extends IScenario<infer Z extends Scenes> ? Z : never;
+type InferScenesInScenario<T> = T extends Scenario<infer Z extends Scenes> ? Z : never;
 
 type InferScenesInScenarioConstructor<T> = T extends abstract new (domain: string, usecase: string, id: string, isSubstitute: boolean) => infer S
-    ? S extends IScenario<infer Z> ? Z : never
+    ? S extends Scenario<infer Z> ? Z : never
     : never;
 
 export interface IScenarioDelegate<Z extends Scenes> {
-    next?<S extends IScenario<Z>>(to: Context<Z>, scenario: S): Promise<Context<Z>>;
+    next?<S extends Scenario<Z>>(to: Context<Z>, scenario: S): Promise<Context<Z>>;
     authorize?<A extends IActor<NOCARE>, R extends DomainRequirements, D extends StringKeyof<R>, U extends StringKeyof<R[D]>>(actor: A, domain: D, usecase: U): boolean;
     complete?<A extends IActor<NOCARE>, R extends DomainRequirements, D extends keyof R, U extends keyof R[D]>(withResult: InteractResult<R, D, U, A, Z>): void;
 }
 
-export interface IScenario<Z extends Scenes> {
-    domain: string;
-    usecase: string;
-    id: string;
-    isSubstitute: boolean;
+
+// for declaring like "SomeScenario<SomeScenes>", cannot use generics paramaters "D extends UsecaseDefinitions, U extends keyof D"
+export class Scenario<Z extends Scenes> {
+    readonly domain: string;
+    readonly usecase: string;
+    readonly id: string;
+    readonly isSubstitute: boolean;
     delegate?: IScenarioDelegate<Z>;
-    keys: {
-        basics : SceneFactory<Z, Basics>;
-        alternatives : SceneFactory<Z, Alternatives>;
-        goals : SceneFactory<Z, Goals>;
+    readonly keys: {
+        readonly basics : SceneFactory<Z, Basics>;
+        readonly alternatives : SceneFactory<Z, Alternatives>;
+        readonly goals : SceneFactory<Z, Goals>;
     };
-    next(to: Context<Z>): Promise<Context<Z>>;
-    just(next: Context<Z>): Promise<Context<Z>>;
-    // delegate?: <S extends this>(scene: Context<Z>, scenario: S) => Promise<Context<Z>>;
-    authorize?<A extends IActor<NOCARE>, R extends DomainRequirements, D extends StringKeyof<R>, U extends StringKeyof<R[D]>>(actor: A, domain: D, usecase: U): boolean;
-    complete?<A extends IActor<NOCARE>, R extends DomainRequirements, D extends keyof R, U extends keyof R[D]>(withResult: InteractResult<R, D, U, A, Z>): void;
+    readonly basics: ContextFactory<Z, Basics>;
+    readonly alternatives: ContextFactory<Z, Alternatives>;
+    readonly goals: ContextFactory<Z, Goals>;
+
+    constructor(domain: string, usecase: string, id: string, isSubstitute = false) {
+        this.domain = domain;
+        this.usecase = usecase;
+        this.id = id;
+        this.isSubstitute = isSubstitute;
+        this.keys = {
+            basics: new SceneFactory<Z, Basics>()
+            , alternatives: new SceneFactory<Z, Alternatives>()
+            , goals: new SceneFactory<Z, Goals>()
+        };
+        this.basics = new ContextFactory<Z, Basics>("basics");
+        this.alternatives = new ContextFactory<Z, Alternatives>("alternatives");
+        this.goals = new ContextFactory<Z, Goals>("goals");
+    }
+
+    next(to: Context<Z>): Promise<Context<Z>> {
+        if (this.delegate !== undefined && this.delegate.next !== undefined) {
+            return this.delegate.next(to, this);
+        }
+        throw new Error();
+    }
+    
+    just(next: Context<Z>) : Promise<Context<Z>> {
+        return Promise.resolve(next);
+    }
+
+    authorize<A extends IActor<NOCARE>, R extends DomainRequirements, D extends StringKeyof<R>, U extends StringKeyof<R[D]>>(actor: A, domain: D, usecase: U): boolean {
+        if (this.delegate !== undefined && this.delegate.authorize !== undefined) {
+            return this.delegate.authorize(actor, domain, usecase);
+        }
+        throw new Error(`USECASE "${usecase}" IS NOT AUTHORIZED FOR ACTOR "${actor.constructor.name}."`);
+    }
+
+    complete<A extends IActor<NOCARE>, R extends DomainRequirements, D extends keyof R, U extends keyof R[D]>(withResult: InteractResult<R, D, U, A, Z>): void {
+        if (this.delegate !== undefined && this.delegate.complete !== undefined) {
+            this.delegate.complete(withResult);
+        }
+    }
 }
 
 export const InteractResultType = {
@@ -208,14 +247,14 @@ const generateId = (length: number) => {
     return Array.from(crypto.getRandomValues(new Uint8Array(length))).map((n)=>S[n%S.length]).join("");
 };
 
-class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], S extends IScenario<NOCARE>> {
+class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> {
     readonly id: string;
     #domain: D;
     #usecase: U;
-    #initialContext: Context<InferScenesInScenario<S>>;
-    #scenario: S;
+    #initialContext: Context<InferScenesInScenario<Scenario<NOCARE>>>;
+    #scenario: Scenario<NOCARE>;
     
-    constructor(id: string, domain: D, usecase: U, initialContext: Context<InferScenesInScenario<S>>, scenario: S) {
+    constructor(id: string, domain: D, usecase: U, initialContext: Context<InferScenesInScenario<Scenario<NOCARE>>>, scenario: Scenario<NOCARE>) {
         this.id = id;
         this.#domain = domain;
         this.#usecase = usecase;
@@ -223,15 +262,11 @@ class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof 
         this.#scenario = scenario;
     }
 
-    // set(delegate: (context: Context<InferScenesInScenario<S>>, scenario: S) => Promise<Context<InferScenesInScenario<S>>>): void {
-    //     this.#scenario.delegate = delegate;
-    // }
-
-    set(delegate: IScenarioDelegate<InferScenesInScenario<S>>): void {
+    set(delegate: IScenarioDelegate<InferScenesInScenario<Scenario<NOCARE>>>): void {
         this.#scenario.delegate = delegate;
     }
 
-    progress<User, A extends IActor<User>>(actor: A): Promise<Context<InferScenesInScenario<S>>> {
+    progress<User, A extends IActor<User>>(actor: A): Promise<Context<InferScenesInScenario<Scenario<NOCARE>>>> {
         if (this.#scenario.authorize && !this.#scenario.authorize(actor, this.#domain as Extract<D, string>, this.#usecase as Extract<U, string>)) {
             const err = new ActorNotAuthorizedToInteractIn(actor, this.#domain, this.#usecase);
             return Promise.reject(err);
@@ -239,11 +274,11 @@ class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof 
         return this.#scenario.next(this.#initialContext);
     }
 
-    interactedBy<User, A extends IActor<User>>(actor: A): Promise<InteractResult<R, D, U, A, InferScenesInScenario<S>>> {
+    interactedBy<User, A extends IActor<User>>(actor: A): Promise<InteractResult<R, D, U, A, InferScenesInScenario<Scenario<NOCARE>>>> {
         const startAt = new Date();
-        const InteractResult = new InteractResultFactory<R, D, U, A, InferScenesInScenario<S>>();
+        const InteractResult = new InteractResultFactory<R, D, U, A, InferScenesInScenario<Scenario<NOCARE>>>();
 
-        const recursive = (scenario: Context<InferScenesInScenario<S>>[]): Promise<Context<InferScenesInScenario<S>>[]> => {
+        const recursive = (scenario: Context<InferScenesInScenario<Scenario<NOCARE>>>[]): Promise<Context<InferScenesInScenario<Scenario<NOCARE>>>[]> => {
             const lastScene = scenario.slice(-1)[0];
             if (lastScene.course === "goals") { // exit criteria
                 return Promise.resolve(scenario);
@@ -260,7 +295,7 @@ class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof 
             const err = new ActorNotAuthorizedToInteractIn(actor, this.#domain, this.#usecase);
             return Promise.reject(err);
         }
-        const scenario: Context<InferScenesInScenario<S>>[] = [this.#initialContext];
+        const scenario: Context<InferScenesInScenario<Scenario<NOCARE>>>[] = [this.#initialContext];
 
         return recursive(scenario)
             .then((performedScenario) => {
@@ -309,7 +344,7 @@ export type Usecase<R extends DomainRequirements, D extends keyof R, U extends k
     "name" : U;
     "course": Courses;
     "scene": string;
-} & _Usecase<R, D, U, InferScenario<R[D][U]>>;
+} & _Usecase<R, D, U>;
 
 // for making usecase as Discriminated Union, must use "keyof D" for type of name, not use "string".
 type ScenarioFactory<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses> = InferScenesInScenarioConstructor<R[D][U]>[C] extends Empty
@@ -321,7 +356,7 @@ type ScenarioFactory<R extends DomainRequirements, D extends keyof R, U extends 
     };
 
 const ScenarioFactory = class ScenarioFactory<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses> {
-    constructor(domain: D, usecase: U, course: C, scenario: new (odmain: D, usecase: U, id: string, isSubstitute: boolean) => IScenario<NOCARE>) {
+    constructor(domain: D, usecase: U, course: C, scenario: new (odmain: D, usecase: U, id: string, isSubstitute: boolean) => Scenario<NOCARE>) {
         return new Proxy(this, {
             get(target, prop, receiver) {
                 return ((typeof prop === "string") && !(prop in target))
@@ -329,14 +364,14 @@ const ScenarioFactory = class ScenarioFactory<R extends DomainRequirements, D ex
                         const context = Object.assign(withValues || {}, { "scene" : prop, course }) as Context<InferScenesInScenarioConstructor<R[D][U]>>;
                         const _id = id || generateId(8);
                         const s = new scenario(domain, usecase, _id, isSubstitute);
-                        const usecaseCore = new _Usecase<R, D, U, typeof s>(_id, domain, usecase, context, s);
+                        const usecaseCore = new _Usecase<R, D, U>(_id, domain, usecase, context, s);
                         return Object.freeze(Object.assign(usecaseCore, { "domain": domain, "name" : usecase, "scene": prop, course }));
                     }
                     : Reflect.get(target, prop, receiver);
             }
         });
     }
-} as new <R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses>(domain: D, usecase: U, course: C, scenario: new (domain: D, usecase: U, id: string, isSubstitute: boolean) => IScenario<NOCARE>) => ScenarioFactory<R, D, U, C>;
+} as new <R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses>(domain: D, usecase: U, course: C, scenario: new (domain: D, usecase: U, id: string, isSubstitute: boolean) => Scenario<NOCARE>) => ScenarioFactory<R, D, U, C>;
 
 class CourseSelector<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> {
     readonly keys: {
@@ -348,7 +383,7 @@ class CourseSelector<R extends DomainRequirements, D extends keyof R, U extends 
     readonly alternatives: ScenarioFactory<R, D, U, Alternatives>;
     readonly goals: ScenarioFactory<R, D, U, Goals>;
 
-    constructor(domain: D, usecase: U, scenario: new (domain: D, usecase: U, id: string, isSubstitute: boolean) => IScenario<NOCARE>) {
+    constructor(domain: D, usecase: U, scenario: new (domain: D, usecase: U, id: string, isSubstitute: boolean) => Scenario<NOCARE>) {
         this.keys = {
             basics: new SceneFactoryAdapter<R, D, U, Basics>()
             , alternatives: new SceneFactoryAdapter<R, D, U, Alternatives>()
@@ -358,64 +393,6 @@ class CourseSelector<R extends DomainRequirements, D extends keyof R, U extends 
         this.alternatives = new ScenarioFactory<R, D, U, Alternatives>(domain, usecase, "alternatives", scenario);
         this.goals = new ScenarioFactory<R, D, U, Goals>(domain, usecase, "goals", scenario);
     }
-}
-
-// for declaring like "SomeScenario<SomeScenes>", cannot use generics paramaters "D extends UsecaseDefinitions, U extends keyof D"
-export abstract class AbstractScenario<Z extends Scenes> implements IScenario<Z> {
-    readonly domain: string;
-    readonly usecase: string;
-    readonly id: string;
-    readonly isSubstitute: boolean;
-    readonly delegate?: IScenarioDelegate<Z>;
-    readonly keys: {
-        readonly basics : SceneFactory<Z, Basics>;
-        readonly alternatives : SceneFactory<Z, Alternatives>;
-        readonly goals : SceneFactory<Z, Goals>;
-    };
-    readonly basics: ContextFactory<Z, Basics>;
-    readonly alternatives: ContextFactory<Z, Alternatives>;
-    readonly goals: ContextFactory<Z, Goals>;
-
-    constructor(domain: string, usecase: string, id: string, isSubstitute = false) {
-        this.domain = domain;
-        this.usecase = usecase;
-        this.id = id;
-        this.isSubstitute = isSubstitute;
-        this.keys = {
-            basics: new SceneFactory<Z, Basics>()
-            , alternatives: new SceneFactory<Z, Alternatives>()
-            , goals: new SceneFactory<Z, Goals>()
-        };
-        this.basics = new ContextFactory<Z, Basics>("basics");
-        this.alternatives = new ContextFactory<Z, Alternatives>("alternatives");
-        this.goals = new ContextFactory<Z, Goals>("goals");
-    }
-
-    next(to: Context<Z>): Promise<Context<Z>> {
-        if (this.delegate !== undefined && this.delegate.next !== undefined) {
-            return this.delegate.next(to, this);
-        }
-        throw new Error();
-    }
-    
-    just(next: Context<Z>) : Promise<Context<Z>> {
-        return Promise.resolve(next);
-    }
-
-    authorize<A extends IActor<NOCARE>, R extends DomainRequirements, D extends StringKeyof<R>, U extends StringKeyof<R[D]>>(actor: A, domain: D, usecase: U): boolean {
-        if (this.delegate !== undefined && this.delegate.authorize !== undefined) {
-            return this.delegate.authorize(actor, domain, usecase);
-        }
-        throw new Error(`USECASE "${usecase}" IS NOT AUTHORIZED FOR ACTOR "${actor.constructor.name}."`);
-    }
-
-    complete<A extends IActor<NOCARE>, R extends DomainRequirements, D extends keyof R, U extends keyof R[D]>(withResult: InteractResult<R, D, U, A, Z>): void {
-        if (this.delegate !== undefined && this.delegate.complete !== undefined) {
-            this.delegate.complete(withResult);
-        }
-    }
-
-    // delegate?: <S extends IScenario<Z>>(scene: Context<Z>, scenario: S) => Promise<Context<Z>>;
 }
 
 export type UsecaseSelector<R extends DomainRequirements, D extends StringKeyof<R>> = Record<"keys", UsecaseKeys<R, D>> & { 
