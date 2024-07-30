@@ -17,12 +17,12 @@ var __privateSet = (obj, member, value, setter) => {
   return value;
 };
 var _domain, _usecase, _initialContext, _scenario;
-class BaseActor {
+class AbstractActor {
   constructor(user = null) {
     this.user = user;
   }
 }
-class Nobody extends BaseActor {
+class Nobody extends AbstractActor {
 }
 const isNobody = (actor) => actor.constructor === Nobody;
 const SceneFactory = class SceneFactory2 {
@@ -84,6 +84,9 @@ class _Usecase {
     __privateSet(this, _usecase, usecase);
     __privateSet(this, _initialContext, initialContext);
     __privateSet(this, _scenario, scenario);
+  }
+  set(delegate) {
+    __privateGet(this, _scenario).delegate = delegate;
   }
   progress(actor) {
     if (__privateGet(this, _scenario).authorize && !__privateGet(this, _scenario).authorize(actor, __privateGet(this, _domain), __privateGet(this, _usecase))) {
@@ -184,7 +187,7 @@ class CourseSelector {
     this.goals = new ScenarioFactory(domain, usecase, "goals", scenario);
   }
 }
-class BaseScenario {
+class AbstractScenario {
   constructor(domain, usecase, id, isSubstitute = false) {
     this.domain = domain;
     this.usecase = usecase;
@@ -199,8 +202,25 @@ class BaseScenario {
     this.alternatives = new ContextFactory("alternatives");
     this.goals = new ContextFactory("goals");
   }
+  next(to) {
+    if (this.delegate !== void 0 && this.delegate.next !== void 0) {
+      return this.delegate.next(to, this);
+    }
+    throw new Error();
+  }
   just(next) {
     return Promise.resolve(next);
+  }
+  authorize(actor, domain, usecase) {
+    if (this.delegate !== void 0 && this.delegate.authorize !== void 0) {
+      return this.delegate.authorize(actor, domain, usecase);
+    }
+    throw new Error(`USECASE "${usecase}" IS NOT AUTHORIZED FOR ACTOR "${actor.constructor.name}."`);
+  }
+  complete(withResult) {
+    if (this.delegate !== void 0 && this.delegate.complete !== void 0) {
+      this.delegate.complete(withResult);
+    }
   }
 }
 const UsecaseSelector = class UsecaseSelector2 {
@@ -236,4 +256,13 @@ class ActorNotAuthorizedToInteractIn extends Error {
     super(`The actor "${actor.constructor.name}" is not authorized to interact on usecase "${String(usecase)}" of domain "${String(domain)}".`);
   }
 }
-export { ActorNotAuthorizedToInteractIn, BaseActor, BaseScenario, InteractResultType, Nobody, Robustive, UsecaseSelector, isNobody };
+const SwiftEnum = class SwiftEnum2 {
+  constructor(f) {
+    return new Proxy(this, {
+      get(target, prop, receiver) {
+        return typeof prop === "string" && !(prop in target) ? (associatedValues) => f !== void 0 ? Object.freeze(Object.assign(new f(), Object.assign(associatedValues || {}, { case: prop }))) : Object.freeze(Object.assign(associatedValues || {}, { case: prop })) : Reflect.get(target, prop, receiver);
+      }
+    });
+  }
+};
+export { AbstractActor, AbstractScenario, ActorNotAuthorizedToInteractIn, InteractResultType, Nobody, Robustive, SwiftEnum, UsecaseSelector, isNobody };

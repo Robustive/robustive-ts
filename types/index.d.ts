@@ -1,5 +1,7 @@
-export { BaseActor, Nobody, isNobody } from "./actor.js";
+export { AbstractActor, Nobody, isNobody } from "./actor.js";
 export type { IActor } from "./actor.js";
-export { ActorNotAuthorizedToInteractIn, BaseScenario, InteractResultType, Robustive, UsecaseSelector } from "./usecase.js";
-export type { AllUsecases, AllUsecasesOverDomain, Context, DomainRequirements, Empty, InteractResult, IScenario, Usecase, Scenes } from "./usecase.js";
+export { AbstractScenario, ActorNotAuthorizedToInteractIn, InteractResultType, Robustive, UsecaseSelector } from "./usecase.js";
+export type { AllUsecases, AllUsecasesOverDomain, Context, Courses, DomainRequirements, Empty, InteractResult, IScenario, IScenarioDelegate, NOCARE, Usecase, Scenes, StringKeyof } from "./usecase.js";
+export { SwiftEnum } from "./enum.js";
+export type { SwiftEnumCases } from "./enum.js";
 //# sourceMappingURL=index.d.ts.map

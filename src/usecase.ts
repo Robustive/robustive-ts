@@ -1,7 +1,7 @@
 import { IActor } from "./actor";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ANY = any;
+export type NOCARE = any;
 
 type PreFlatten<Z> = {
     [C in keyof Z as C extends string 
@@ -84,8 +84,8 @@ const ContextFactory = class ContextFactory<C extends Courses> {
     }
 } as new <Z extends Scenes, C extends Courses>(course: C) => ContextFactory<Z, C>;
 
-type UsecaseScenarios<D> = { [usecase: string] : new (domain: D, usecase: string, id: string, isSubstitute: boolean) => IScenario<ANY> };
-export type DomainRequirements = { [domain: string] :  UsecaseScenarios<ANY> };
+type UsecaseScenarios<D extends string> = { [U in string] : new (domain: D, usecase: U, id: string, isSubstitute: boolean) => IScenario<NOCARE> };
+export type DomainRequirements = { [D in string] :  UsecaseScenarios<D> };
 
 type DomainKeys<R extends DomainRequirements> = {
     [D in keyof R]: D
@@ -111,23 +111,30 @@ const SceneFactoryAdapter = class SceneFactoryAdapter {
     }
 } as new <R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses>() => SceneFactoryAdapter<R, D, U, C>;
 
-type StringKeyof<T> = Extract<keyof T, string>;
+export type StringKeyof<T> = Extract<keyof T, string>;
 
-type InferScenario<T> = T extends new (domain: string, usecase: string, id: string, isSubstitute: boolean) => infer S
-    ? S extends IScenario<ANY> ? S : never
+type InferScenario<T> = T extends abstract new (domain: string, usecase: string, id: string, isSubstitute: boolean) => infer S
+    ? S extends IScenario<NOCARE> ? S : never
     : never;
 
 type InferScenesInScenario<T> = T extends IScenario<infer Z extends Scenes> ? Z : never;
 
-type InferScenesInScenarioConstructor<T> = T extends new (domain: string, usecase: string, id: string, isSubstitute: boolean) => infer S
+type InferScenesInScenarioConstructor<T> = T extends abstract new (domain: string, usecase: string, id: string, isSubstitute: boolean) => infer S
     ? S extends IScenario<infer Z> ? Z : never
     : never;
+
+export interface IScenarioDelegate<Z extends Scenes> {
+    next?<S extends IScenario<Z>>(to: Context<Z>, scenario: S): Promise<Context<Z>>;
+    authorize?<A extends IActor<NOCARE>, R extends DomainRequirements, D extends StringKeyof<R>, U extends StringKeyof<R[D]>>(actor: A, domain: D, usecase: U): boolean;
+    complete?<A extends IActor<NOCARE>, R extends DomainRequirements, D extends keyof R, U extends keyof R[D]>(withResult: InteractResult<R, D, U, A, Z>): void;
+}
 
 export interface IScenario<Z extends Scenes> {
     domain: string;
     usecase: string;
     id: string;
     isSubstitute: boolean;
+    delegate?: IScenarioDelegate<Z>;
     keys: {
         basics : SceneFactory<Z, Basics>;
         alternatives : SceneFactory<Z, Alternatives>;
@@ -135,8 +142,9 @@ export interface IScenario<Z extends Scenes> {
     };
     next(to: Context<Z>): Promise<Context<Z>>;
     just(next: Context<Z>): Promise<Context<Z>>;
-    authorize?<A extends IActor<ANY>, R extends DomainRequirements, D extends StringKeyof<R>, U extends StringKeyof<R[D]>>(actor: A, domain: D, usecase: U): boolean;
-    complete?<A extends IActor<ANY>, R extends DomainRequirements, D extends keyof R, U extends keyof R[D]>(withResult: InteractResult<R, D, U, A, Z>): void;
+    // delegate?: <S extends this>(scene: Context<Z>, scenario: S) => Promise<Context<Z>>;
+    authorize?<A extends IActor<NOCARE>, R extends DomainRequirements, D extends StringKeyof<R>, U extends StringKeyof<R[D]>>(actor: A, domain: D, usecase: U): boolean;
+    complete?<A extends IActor<NOCARE>, R extends DomainRequirements, D extends keyof R, U extends keyof R[D]>(withResult: InteractResult<R, D, U, A, Z>): void;
 }
 
 export const InteractResultType = {
@@ -144,7 +152,7 @@ export const InteractResultType = {
     , failure: "failure"
 } as const;
 
-type InteractResultContext<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], A extends IActor<ANY>, Z extends Scenes> = {
+type InteractResultContext<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], A extends IActor<NOCARE>, Z extends Scenes> = {
     [InteractResultType.success] : {
         id: string;
         actor : A;
@@ -170,14 +178,14 @@ type InteractResultContext<R extends DomainRequirements, D extends keyof R, U ex
     };
 };
 
-type InteractResultCase<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], A extends IActor<ANY>, Z extends Scenes, K extends keyof InteractResultContext<R, D, U, A, Z>> = Record<"type", K> & InteractResultContext<R, D, U, A, Z>[K];
+type InteractResultCase<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], A extends IActor<NOCARE>, Z extends Scenes, K extends keyof InteractResultContext<R, D, U, A, Z>> = Record<"type", K> & InteractResultContext<R, D, U, A, Z>[K];
 
-export type InteractResult<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], A extends IActor<ANY>, Z extends Scenes> = { 
+export type InteractResult<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], A extends IActor<NOCARE>, Z extends Scenes> = { 
     [K in keyof InteractResultContext<R, D, U, A, Z>] : InteractResultCase<R, D, U, A, Z, K>;
 }[keyof InteractResultContext<R, D, U, A, Z>];
 
 
-type InteractResultSelector<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], A extends IActor<ANY>, Z extends Scenes> = { 
+type InteractResultSelector<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], A extends IActor<NOCARE>, Z extends Scenes> = { 
     [K in keyof InteractResultContext<R, D, U, A, Z>] : (withValues: InteractResultContext<R, D, U, A, Z>[K]) => InteractResultCase<R, D, U, A, Z, K>;
 };
 
@@ -193,14 +201,14 @@ const InteractResultFactory = class InteractResultFactory {
             }
         });
     }
-} as new <R extends DomainRequirements, D extends keyof R, U extends keyof R[D], A extends IActor<ANY>, Z extends Scenes>() => InteractResultSelector<R, D, U, A, Z>;
+} as new <R extends DomainRequirements, D extends keyof R, U extends keyof R[D], A extends IActor<NOCARE>, Z extends Scenes>() => InteractResultSelector<R, D, U, A, Z>;
 
 const generateId = (length: number) => { 
     const S = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"; 
     return Array.from(crypto.getRandomValues(new Uint8Array(length))).map((n)=>S[n%S.length]).join("");
 };
 
-class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], S extends IScenario<ANY>> {
+class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], S extends IScenario<NOCARE>> {
     readonly id: string;
     #domain: D;
     #usecase: U;
@@ -213,6 +221,14 @@ class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof 
         this.#usecase = usecase;
         this.#initialContext = initialContext;
         this.#scenario = scenario;
+    }
+
+    // set(delegate: (context: Context<InferScenesInScenario<S>>, scenario: S) => Promise<Context<InferScenesInScenario<S>>>): void {
+    //     this.#scenario.delegate = delegate;
+    // }
+
+    set(delegate: IScenarioDelegate<InferScenesInScenario<S>>): void {
+        this.#scenario.delegate = delegate;
     }
 
     progress<User, A extends IActor<User>>(actor: A): Promise<Context<InferScenesInScenario<S>>> {
@@ -305,11 +321,11 @@ type ScenarioFactory<R extends DomainRequirements, D extends keyof R, U extends 
     };
 
 const ScenarioFactory = class ScenarioFactory<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses> {
-    constructor(domain: D, usecase: U, course: C, scenario: new (odmain: D, usecase: U, id: string, isSubstitute: boolean) => IScenario<ANY>) {
+    constructor(domain: D, usecase: U, course: C, scenario: new (odmain: D, usecase: U, id: string, isSubstitute: boolean) => IScenario<NOCARE>) {
         return new Proxy(this, {
             get(target, prop, receiver) {
                 return ((typeof prop === "string") && !(prop in target))
-                    ? (withValues?: ContextualValues, id?: string, isSubstitute: boolean = false) => {
+                    ? (withValues?: ContextualValues, id?: string, isSubstitute = false) => {
                         const context = Object.assign(withValues || {}, { "scene" : prop, course }) as Context<InferScenesInScenarioConstructor<R[D][U]>>;
                         const _id = id || generateId(8);
                         const s = new scenario(domain, usecase, _id, isSubstitute);
@@ -320,7 +336,7 @@ const ScenarioFactory = class ScenarioFactory<R extends DomainRequirements, D ex
             }
         });
     }
-} as new <R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses>(domain: D, usecase: U, course: C, scenario: new (domain: D, usecase: U, id: string, isSubstitute: boolean) => IScenario<ANY>) => ScenarioFactory<R, D, U, C>;
+} as new <R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses>(domain: D, usecase: U, course: C, scenario: new (domain: D, usecase: U, id: string, isSubstitute: boolean) => IScenario<NOCARE>) => ScenarioFactory<R, D, U, C>;
 
 class CourseSelector<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> {
     readonly keys: {
@@ -332,7 +348,7 @@ class CourseSelector<R extends DomainRequirements, D extends keyof R, U extends 
     readonly alternatives: ScenarioFactory<R, D, U, Alternatives>;
     readonly goals: ScenarioFactory<R, D, U, Goals>;
 
-    constructor(domain: D, usecase: U, scenario: new (domain: D, usecase: U, id: string, isSubstitute: boolean) => IScenario<ANY>) {
+    constructor(domain: D, usecase: U, scenario: new (domain: D, usecase: U, id: string, isSubstitute: boolean) => IScenario<NOCARE>) {
         this.keys = {
             basics: new SceneFactoryAdapter<R, D, U, Basics>()
             , alternatives: new SceneFactoryAdapter<R, D, U, Alternatives>()
@@ -345,11 +361,12 @@ class CourseSelector<R extends DomainRequirements, D extends keyof R, U extends 
 }
 
 // for declaring like "SomeScenario<SomeScenes>", cannot use generics paramaters "D extends UsecaseDefinitions, U extends keyof D"
-export abstract class BaseScenario<Z extends Scenes> implements IScenario<Z> {
+export abstract class AbstractScenario<Z extends Scenes> implements IScenario<Z> {
     readonly domain: string;
     readonly usecase: string;
     readonly id: string;
     readonly isSubstitute: boolean;
+    readonly delegate?: IScenarioDelegate<Z>;
     readonly keys: {
         readonly basics : SceneFactory<Z, Basics>;
         readonly alternatives : SceneFactory<Z, Alternatives>;
@@ -359,7 +376,7 @@ export abstract class BaseScenario<Z extends Scenes> implements IScenario<Z> {
     readonly alternatives: ContextFactory<Z, Alternatives>;
     readonly goals: ContextFactory<Z, Goals>;
 
-    constructor(domain: string, usecase: string, id: string, isSubstitute: boolean = false) {
+    constructor(domain: string, usecase: string, id: string, isSubstitute = false) {
         this.domain = domain;
         this.usecase = usecase;
         this.id = id;
@@ -374,18 +391,38 @@ export abstract class BaseScenario<Z extends Scenes> implements IScenario<Z> {
         this.goals = new ContextFactory<Z, Goals>("goals");
     }
 
-    abstract next(to: Context<Z>): Promise<Context<Z>>;
+    next(to: Context<Z>): Promise<Context<Z>> {
+        if (this.delegate !== undefined && this.delegate.next !== undefined) {
+            return this.delegate.next(to, this);
+        }
+        throw new Error();
+    }
     
     just(next: Context<Z>) : Promise<Context<Z>> {
         return Promise.resolve(next);
     }
+
+    authorize<A extends IActor<NOCARE>, R extends DomainRequirements, D extends StringKeyof<R>, U extends StringKeyof<R[D]>>(actor: A, domain: D, usecase: U): boolean {
+        if (this.delegate !== undefined && this.delegate.authorize !== undefined) {
+            return this.delegate.authorize(actor, domain, usecase);
+        }
+        throw new Error(`USECASE "${usecase}" IS NOT AUTHORIZED FOR ACTOR "${actor.constructor.name}."`);
+    }
+
+    complete<A extends IActor<NOCARE>, R extends DomainRequirements, D extends keyof R, U extends keyof R[D]>(withResult: InteractResult<R, D, U, A, Z>): void {
+        if (this.delegate !== undefined && this.delegate.complete !== undefined) {
+            this.delegate.complete(withResult);
+        }
+    }
+
+    // delegate?: <S extends IScenario<Z>>(scene: Context<Z>, scenario: S) => Promise<Context<Z>>;
 }
 
-export type UsecaseSelector<R extends DomainRequirements, D extends keyof R> = Record<"keys", UsecaseKeys<R, D>> & { 
+export type UsecaseSelector<R extends DomainRequirements, D extends StringKeyof<R>> = Record<"keys", UsecaseKeys<R, D>> & { 
     [U in keyof R[D]]: CourseSelector<R, D, U>
 };
 
-export const UsecaseSelector = class UsecaseSelector<R extends DomainRequirements, D extends keyof R> {
+export const UsecaseSelector = class UsecaseSelector<R extends DomainRequirements, D extends StringKeyof<R>> {
     readonly keys: UsecaseKeys<R, D>;
     constructor(domain: D, scenarioConstuctors: UsecaseScenarios<D>) {
         const usecaseKeys = Object.keys(scenarioConstuctors);
@@ -401,10 +438,10 @@ export const UsecaseSelector = class UsecaseSelector<R extends DomainRequirement
             }
         });
     }
-} as new <R extends DomainRequirements, D extends keyof R>(domain: D, scenarioConstuctors: UsecaseScenarios<D>) => UsecaseSelector<R, D>;
+} as new <R extends DomainRequirements, D extends StringKeyof<R>>(domain: D, scenarioConstuctors: UsecaseScenarios<D>) => UsecaseSelector<R, D>;
 
 export type Robustive<R extends DomainRequirements> = Record<"keys", DomainKeys<R>> & {
-    [D in keyof R] : UsecaseSelector<R, D>;
+    [D in StringKeyof<R>] : UsecaseSelector<R, D>;
 };
 
 export const Robustive = class Robustive<R extends DomainRequirements> {
@@ -418,7 +455,7 @@ export const Robustive = class Robustive<R extends DomainRequirements> {
         return new Proxy(this, {
             get(target, prop, receiver) { // prop = domain
                 return ((typeof prop === "string") && domainKeys.includes(prop))
-                    ? new UsecaseSelector<R, keyof R>(prop, requirements[prop])
+                    ? new UsecaseSelector<R, StringKeyof<R>>(prop as StringKeyof<R>, requirements[prop])
                     : Reflect.get(target, prop, receiver);
             }
         });
@@ -435,7 +472,7 @@ export type AllUsecasesOverDomain<R extends DomainRequirements> = {
     }[keyof R[D]]
 }[keyof R];
 
-export class ActorNotAuthorizedToInteractIn<A extends IActor<ANY>, Domain, Usecase> extends Error {
+export class ActorNotAuthorizedToInteractIn<A extends IActor<NOCARE>, Domain, Usecase> extends Error {
     constructor(actor: A, domain: Domain, usecase: Usecase) {
         super(`The actor "${ actor.constructor.name }" is not authorized to interact on usecase "${ String(usecase) }" of domain "${ String(domain) }".`);
     }
