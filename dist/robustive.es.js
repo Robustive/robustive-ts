@@ -54,6 +54,42 @@ const SceneFactoryAdapter = class SceneFactoryAdapter2 {
     });
   }
 };
+class Scenario {
+  constructor(domain, usecase, id, isSubstitute = false) {
+    this.domain = domain;
+    this.usecase = usecase;
+    this.id = id;
+    this.isSubstitute = isSubstitute;
+    this.keys = {
+      basics: new SceneFactory(),
+      alternatives: new SceneFactory(),
+      goals: new SceneFactory()
+    };
+    this.basics = new ContextFactory("basics");
+    this.alternatives = new ContextFactory("alternatives");
+    this.goals = new ContextFactory("goals");
+  }
+  next(to) {
+    if (this.delegate !== void 0 && this.delegate.next !== void 0) {
+      return this.delegate.next(to, this);
+    }
+    throw new Error();
+  }
+  just(next) {
+    return Promise.resolve(next);
+  }
+  authorize(actor, domain, usecase) {
+    if (this.delegate !== void 0 && this.delegate.authorize !== void 0) {
+      return this.delegate.authorize(actor, domain, usecase);
+    }
+    throw new Error(`USECASE "${usecase}" IS NOT AUTHORIZED FOR ACTOR "${actor.constructor.name}."`);
+  }
+  complete(withResult) {
+    if (this.delegate !== void 0 && this.delegate.complete !== void 0) {
+      this.delegate.complete(withResult);
+    }
+  }
+}
 const InteractResultType = {
   success: "success",
   failure: "failure"
@@ -187,42 +223,6 @@ class CourseSelector {
     this.goals = new ScenarioFactory(domain, usecase, "goals", scenario);
   }
 }
-class AbstractScenario {
-  constructor(domain, usecase, id, isSubstitute = false) {
-    this.domain = domain;
-    this.usecase = usecase;
-    this.id = id;
-    this.isSubstitute = isSubstitute;
-    this.keys = {
-      basics: new SceneFactory(),
-      alternatives: new SceneFactory(),
-      goals: new SceneFactory()
-    };
-    this.basics = new ContextFactory("basics");
-    this.alternatives = new ContextFactory("alternatives");
-    this.goals = new ContextFactory("goals");
-  }
-  next(to) {
-    if (this.delegate !== void 0 && this.delegate.next !== void 0) {
-      return this.delegate.next(to, this);
-    }
-    throw new Error();
-  }
-  just(next) {
-    return Promise.resolve(next);
-  }
-  authorize(actor, domain, usecase) {
-    if (this.delegate !== void 0 && this.delegate.authorize !== void 0) {
-      return this.delegate.authorize(actor, domain, usecase);
-    }
-    throw new Error(`USECASE "${usecase}" IS NOT AUTHORIZED FOR ACTOR "${actor.constructor.name}."`);
-  }
-  complete(withResult) {
-    if (this.delegate !== void 0 && this.delegate.complete !== void 0) {
-      this.delegate.complete(withResult);
-    }
-  }
-}
 const UsecaseSelector = class UsecaseSelector2 {
   constructor(domain, scenarioConstuctors) {
     const usecaseKeys = Object.keys(scenarioConstuctors);
@@ -265,4 +265,4 @@ const SwiftEnum = class SwiftEnum2 {
     });
   }
 };
-export { AbstractActor, AbstractScenario, ActorNotAuthorizedToInteractIn, InteractResultType, Nobody, Robustive, SwiftEnum, UsecaseSelector, isNobody };
+export { AbstractActor, ActorNotAuthorizedToInteractIn, CourseSelector, InteractResultType, Nobody, Robustive, Scenario, SwiftEnum, UsecaseSelector, isNobody };

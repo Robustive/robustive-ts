@@ -21,7 +21,7 @@ type Flatten<Z> = {
 };
 
 const courses = ["basics", "alternatives", "goals"] as const;
-type Courses = typeof courses[number];
+export type Courses = typeof courses[number];
 type Basics = Extract<Courses, "basics">;
 type Alternatives = Extract<Courses, "alternatives">;
 type Goals = Extract<Courses, "goals">;
@@ -117,7 +117,7 @@ type InferScenario<T> = T extends abstract new (domain: string, usecase: string,
     ? S extends Scenario<NOCARE> ? S : never
     : never;
 
-type InferScenesInScenario<T> = T extends Scenario<infer Z extends Scenes> ? Z : never;
+export type InferScenesInScenario<T> = T extends Scenario<infer Z extends Scenes> ? Z : never;
 
 type InferScenesInScenarioConstructor<T> = T extends abstract new (domain: string, usecase: string, id: string, isSubstitute: boolean) => infer S
     ? S extends Scenario<infer Z> ? Z : never
@@ -373,7 +373,7 @@ const ScenarioFactory = class ScenarioFactory<R extends DomainRequirements, D ex
     }
 } as new <R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses>(domain: D, usecase: U, course: C, scenario: new (domain: D, usecase: U, id: string, isSubstitute: boolean) => Scenario<NOCARE>) => ScenarioFactory<R, D, U, C>;
 
-class CourseSelector<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> {
+export class CourseSelector<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> {
     readonly keys: {
         readonly basics : SceneFactoryAdapter<R, D, U, Basics>;
         readonly alternatives : SceneFactoryAdapter<R, D, U, Alternatives>;

@@ -7,7 +7,7 @@ type Flatten<Z> = {
     [CK in keyof PreFlatten<Z>]: CK extends `${infer C extends keyof Z & string}.${string}` ? CK extends `${string}.${infer K extends keyof Z[C] & string}` ? Z[C][K] : never : never;
 };
 declare const courses: readonly ["basics", "alternatives", "goals"];
-type Courses = typeof courses[number];
+export type Courses = typeof courses[number];
 type Basics = Extract<Courses, "basics">;
 type Alternatives = Extract<Courses, "alternatives">;
 type Goals = Extract<Courses, "goals">;
@@ -50,7 +50,7 @@ type UsecaseKeys<R extends DomainRequirements, D extends keyof R> = {
 type SceneFactoryAdapter<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses> = InferScenesInScenarioConstructor<R[D][U]>[C] extends Empty ? Empty : SceneFactory<InferScenesInScenarioConstructor<R[D][U]>, C>;
 declare const SceneFactoryAdapter: new <R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends "basics" | "alternatives" | "goals">() => SceneFactoryAdapter<R, D, U, C>;
 export type StringKeyof<T> = Extract<keyof T, string>;
-type InferScenesInScenario<T> = T extends Scenario<infer Z extends Scenes> ? Z : never;
+export type InferScenesInScenario<T> = T extends Scenario<infer Z extends Scenes> ? Z : never;
 type InferScenesInScenarioConstructor<T> = T extends abstract new (domain: string, usecase: string, id: string, isSubstitute: boolean) => infer S ? S extends Scenario<infer Z> ? Z : never : never;
 export interface IScenarioDelegate<Z extends Scenes> {
     next?<S extends Scenario<Z>>(to: Context<Z>, scenario: S): Promise<Context<Z>>;
@@ -128,7 +128,7 @@ type ScenarioFactory<R extends DomainRequirements, D extends keyof R, U extends 
     [K in keyof InferScenesInScenarioConstructor<R[D][U]>[C]]: InferScenesInScenarioConstructor<R[D][U]>[C][K] extends Empty ? (id?: string, isSubstitute?: boolean) => Usecase<R, D, U> : (withValues: InferScenesInScenarioConstructor<R[D][U]>[C][K], id?: string, isSubstitute?: boolean) => Usecase<R, D, U>;
 };
 declare const ScenarioFactory: new <R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends "basics" | "alternatives" | "goals">(domain: D, usecase: U, course: C, scenario: new (domain: D, usecase: U, id: string, isSubstitute: boolean) => Scenario<NOCARE>) => ScenarioFactory<R, D, U, C>;
-declare class CourseSelector<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> {
+export declare class CourseSelector<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> {
     readonly keys: {
         readonly basics: SceneFactoryAdapter<R, D, U, Basics>;
         readonly alternatives: SceneFactoryAdapter<R, D, U, Alternatives>;
