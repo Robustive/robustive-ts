@@ -16,7 +16,7 @@ var __privateSet = (obj, member, value, setter) => {
   setter ? setter.call(obj, value) : member.set(obj, value);
   return value;
 };
-var _domain, _usecase, _initialContext, _scenario;
+var _domain, _usecase, _currentContext, _scenario;
 class AbstractActor {
   constructor(user = null) {
     this.user = user;
@@ -73,7 +73,7 @@ class Scenario {
     if (this.delegate !== void 0 && this.delegate.next !== void 0) {
       return this.delegate.next(to, this);
     }
-    throw new Error();
+    return Promise.reject(new Error());
   }
   just(next) {
     return Promise.resolve(next);
@@ -113,12 +113,12 @@ class _Usecase {
   constructor(id, domain, usecase, initialContext, scenario) {
     __privateAdd(this, _domain, void 0);
     __privateAdd(this, _usecase, void 0);
-    __privateAdd(this, _initialContext, void 0);
+    __privateAdd(this, _currentContext, void 0);
     __privateAdd(this, _scenario, void 0);
     this.id = id;
     __privateSet(this, _domain, domain);
     __privateSet(this, _usecase, usecase);
-    __privateSet(this, _initialContext, initialContext);
+    __privateSet(this, _currentContext, initialContext);
     __privateSet(this, _scenario, scenario);
   }
   set(delegate) {
@@ -129,7 +129,10 @@ class _Usecase {
       const err = new ActorNotAuthorizedToInteractIn(actor, __privateGet(this, _domain), __privateGet(this, _usecase));
       return Promise.reject(err);
     }
-    return __privateGet(this, _scenario).next(__privateGet(this, _initialContext));
+    return __privateGet(this, _scenario).next(__privateGet(this, _currentContext)).then((nextScene) => {
+      __privateSet(this, _currentContext, nextScene);
+      return nextScene;
+    });
   }
   interactedBy(actor) {
     const startAt = new Date();
@@ -140,6 +143,7 @@ class _Usecase {
         return Promise.resolve(scenario2);
       }
       return __privateGet(this, _scenario).next(lastScene).then((nextScene) => {
+        __privateSet(this, _currentContext, nextScene);
         scenario2.push(nextScene);
         return recursive(scenario2);
       });
@@ -148,7 +152,7 @@ class _Usecase {
       const err = new ActorNotAuthorizedToInteractIn(actor, __privateGet(this, _domain), __privateGet(this, _usecase));
       return Promise.reject(err);
     }
-    const scenario = [__privateGet(this, _initialContext)];
+    const scenario = [__privateGet(this, _currentContext)];
     return recursive(scenario).then((performedScenario) => {
       const endAt = new Date();
       const elapsedTimeMs = endAt.getTime() - startAt.getTime();
@@ -194,7 +198,7 @@ class _Usecase {
 }
 _domain = new WeakMap();
 _usecase = new WeakMap();
-_initialContext = new WeakMap();
+_currentContext = new WeakMap();
 _scenario = new WeakMap();
 const ScenarioFactory = class ScenarioFactory2 {
   constructor(domain, usecase, course, scenario) {

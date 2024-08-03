@@ -165,7 +165,7 @@ export class Scenario<Z extends Scenes> {
         if (this.delegate !== undefined && this.delegate.next !== undefined) {
             return this.delegate.next(to, this);
         }
-        throw new Error();
+        return Promise.reject(new Error());
     }
     
     just(next: Context<Z>) : Promise<Context<Z>> {
@@ -251,14 +251,14 @@ class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof 
     readonly id: string;
     #domain: D;
     #usecase: U;
-    #initialContext: Context<InferScenesInScenario<Scenario<NOCARE>>>;
+    #currentContext: Context<InferScenesInScenario<Scenario<NOCARE>>>;
     #scenario: Scenario<NOCARE>;
     
     constructor(id: string, domain: D, usecase: U, initialContext: Context<InferScenesInScenario<Scenario<NOCARE>>>, scenario: Scenario<NOCARE>) {
         this.id = id;
         this.#domain = domain;
         this.#usecase = usecase;
-        this.#initialContext = initialContext;
+        this.#currentContext = initialContext;
         this.#scenario = scenario;
     }
 
@@ -266,14 +266,28 @@ class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof 
         this.#scenario.delegate = delegate;
     }
 
+    /**
+     * Step through the usecase scenario from the current scene to the next scene.
+     * @param actor 
+     * @returns 
+     */
     progress<User, A extends IActor<User>>(actor: A): Promise<Context<InferScenesInScenario<Scenario<NOCARE>>>> {
         if (this.#scenario.authorize && !this.#scenario.authorize(actor, this.#domain as Extract<D, string>, this.#usecase as Extract<U, string>)) {
             const err = new ActorNotAuthorizedToInteractIn(actor, this.#domain, this.#usecase);
             return Promise.reject(err);
         }
-        return this.#scenario.next(this.#initialContext);
+        return this.#scenario.next(this.#currentContext)
+            .then(nextScene => {
+                this.#currentContext = nextScene;
+                return nextScene;
+            });
     }
 
+    /**
+     * Execute the use case to completion according to the defined scenario.
+     * @param actor 
+     * @returns 
+     */
     interactedBy<User, A extends IActor<User>>(actor: A): Promise<InteractResult<R, D, U, A, InferScenesInScenario<Scenario<NOCARE>>>> {
         const startAt = new Date();
         const InteractResult = new InteractResultFactory<R, D, U, A, InferScenesInScenario<Scenario<NOCARE>>>();
@@ -286,6 +300,7 @@ class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof 
 
             return this.#scenario.next(lastScene)
                 .then((nextScene) => {
+                    this.#currentContext = nextScene;
                     scenario.push(nextScene);
                     return recursive(scenario);
                 });
@@ -295,7 +310,7 @@ class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof 
             const err = new ActorNotAuthorizedToInteractIn(actor, this.#domain, this.#usecase);
             return Promise.reject(err);
         }
-        const scenario: Context<InferScenesInScenario<Scenario<NOCARE>>>[] = [this.#initialContext];
+        const scenario: Context<InferScenesInScenario<Scenario<NOCARE>>>[] = [this.#currentContext];
 
         return recursive(scenario)
             .then((performedScenario) => {
