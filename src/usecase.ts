@@ -124,7 +124,7 @@ type InferScenesInScenarioConstructor<T> = T extends abstract new (domain: strin
     : never;
 
 export interface IScenarioDelegate<Z extends Scenes> {
-    next?<S extends Scenario<Z>>(to: Context<Z>, scenario: S): Promise<Context<Z>>;
+    next?<A extends IActor<NOCARE>, S extends Scenario<Z>>(to: Context<Z>, actor: A, scenario: S): Promise<Context<Z>>;
     authorize?<A extends IActor<NOCARE>, R extends DomainRequirements, D extends StringKeyof<R>, U extends StringKeyof<R[D]>>(actor: A, domain: D, usecase: U): boolean;
     complete?<A extends IActor<NOCARE>, R extends DomainRequirements, D extends keyof R, U extends keyof R[D]>(withResult: InteractResult<R, D, U, A, Z>): void;
 }
@@ -161,9 +161,9 @@ export class Scenario<Z extends Scenes> {
         this.goals = new ContextFactory<Z, Goals>("goals");
     }
 
-    next(to: Context<Z>): Promise<Context<Z>> {
+    next<A extends IActor<NOCARE>>(to: Context<Z>, actor: A): Promise<Context<Z>> {
         if (this.delegate !== undefined && this.delegate.next !== undefined) {
-            return this.delegate.next(to, this);
+            return this.delegate.next(to, actor, this);
         }
         return Promise.reject(new Error());
     }
@@ -276,7 +276,7 @@ class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof 
             const err = new ActorNotAuthorizedToInteractIn(actor, this.#domain, this.#usecase);
             return Promise.reject(err);
         }
-        return this.#scenario.next(this.#currentContext)
+        return this.#scenario.next(this.#currentContext, actor)
             .then(nextScene => {
                 this.#currentContext = nextScene;
                 return nextScene;
@@ -298,7 +298,7 @@ class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof 
                 return Promise.resolve(scenario);
             }
 
-            return this.#scenario.next(lastScene)
+            return this.#scenario.next(lastScene, actor)
                 .then((nextScene) => {
                     this.#currentContext = nextScene;
                     scenario.push(nextScene);

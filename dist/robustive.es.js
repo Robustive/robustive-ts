@@ -69,9 +69,9 @@ class Scenario {
     this.alternatives = new ContextFactory("alternatives");
     this.goals = new ContextFactory("goals");
   }
-  next(to) {
+  next(to, actor) {
     if (this.delegate !== void 0 && this.delegate.next !== void 0) {
-      return this.delegate.next(to, this);
+      return this.delegate.next(to, actor, this);
     }
     return Promise.reject(new Error());
   }
@@ -129,7 +129,7 @@ class _Usecase {
       const err = new ActorNotAuthorizedToInteractIn(actor, __privateGet(this, _domain), __privateGet(this, _usecase));
       return Promise.reject(err);
     }
-    return __privateGet(this, _scenario).next(__privateGet(this, _currentContext)).then((nextScene) => {
+    return __privateGet(this, _scenario).next(__privateGet(this, _currentContext), actor).then((nextScene) => {
       __privateSet(this, _currentContext, nextScene);
       return nextScene;
     });
@@ -142,7 +142,7 @@ class _Usecase {
       if (lastScene.course === "goals") {
         return Promise.resolve(scenario2);
       }
-      return __privateGet(this, _scenario).next(lastScene).then((nextScene) => {
+      return __privateGet(this, _scenario).next(lastScene, actor).then((nextScene) => {
         __privateSet(this, _currentContext, nextScene);
         scenario2.push(nextScene);
         return recursive(scenario2);

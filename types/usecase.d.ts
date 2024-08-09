@@ -53,7 +53,7 @@ export type StringKeyof<T> = Extract<keyof T, string>;
 export type InferScenesInScenario<T> = T extends Scenario<infer Z extends Scenes> ? Z : never;
 type InferScenesInScenarioConstructor<T> = T extends abstract new (domain: string, usecase: string, id: string, isSubstitute: boolean) => infer S ? S extends Scenario<infer Z> ? Z : never : never;
 export interface IScenarioDelegate<Z extends Scenes> {
-    next?<S extends Scenario<Z>>(to: Context<Z>, scenario: S): Promise<Context<Z>>;
+    next?<A extends IActor<NOCARE>, S extends Scenario<Z>>(to: Context<Z>, actor: A, scenario: S): Promise<Context<Z>>;
     authorize?<A extends IActor<NOCARE>, R extends DomainRequirements, D extends StringKeyof<R>, U extends StringKeyof<R[D]>>(actor: A, domain: D, usecase: U): boolean;
     complete?<A extends IActor<NOCARE>, R extends DomainRequirements, D extends keyof R, U extends keyof R[D]>(withResult: InteractResult<R, D, U, A, Z>): void;
 }
@@ -72,7 +72,7 @@ export declare class Scenario<Z extends Scenes> {
     readonly alternatives: ContextFactory<Z, Alternatives>;
     readonly goals: ContextFactory<Z, Goals>;
     constructor(domain: string, usecase: string, id: string, isSubstitute?: boolean);
-    next(to: Context<Z>): Promise<Context<Z>>;
+    next<A extends IActor<NOCARE>>(to: Context<Z>, actor: A): Promise<Context<Z>>;
     just(next: Context<Z>): Promise<Context<Z>>;
     authorize<A extends IActor<NOCARE>, R extends DomainRequirements, D extends StringKeyof<R>, U extends StringKeyof<R[D]>>(actor: A, domain: D, usecase: U): boolean;
     complete<A extends IActor<NOCARE>, R extends DomainRequirements, D extends keyof R, U extends keyof R[D]>(withResult: InteractResult<R, D, U, A, Z>): void;
