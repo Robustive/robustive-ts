@@ -110,7 +110,7 @@ type InteractResultCase<R extends DomainRequirements, D extends keyof R, U exten
 export type InteractResult<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], A extends IActor<NOCARE>, Z extends Scenes> = {
     [K in keyof InteractResultContext<R, D, U, A, Z>]: InteractResultCase<R, D, U, A, Z, K>;
 }[keyof InteractResultContext<R, D, U, A, Z>];
-declare class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> {
+declare class UsecaseImple<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> {
     #private;
     readonly id: string;
     constructor(id: string, domain: D, usecase: U, initialContext: Context<InferScenesInScenario<Scenario<NOCARE>>>, scenario: Scenario<NOCARE>);
@@ -118,12 +118,13 @@ declare class _Usecase<R extends DomainRequirements, D extends keyof R, U extend
     progress<User, A extends IActor<User>>(actor: A): Promise<Context<InferScenesInScenario<Scenario<NOCARE>>>>;
     interactedBy<User, A extends IActor<User>>(actor: A): Promise<InteractResult<R, D, U, A, InferScenesInScenario<Scenario<NOCARE>>>>;
 }
-export type Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> = {
+type UsecaseContext<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> = {
     "domain": D;
     "name": U;
     "course": Courses;
     "scene": string;
-} & _Usecase<R, D, U>;
+};
+export type Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> = UsecaseContext<R, D, U> & UsecaseImple<R, D, U>;
 type ScenarioFactory<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses> = InferScenesInScenarioConstructor<R[D][U]>[C] extends Empty ? Empty : {
     [K in keyof InferScenesInScenarioConstructor<R[D][U]>[C]]: InferScenesInScenarioConstructor<R[D][U]>[C][K] extends Empty ? (id?: string, isSubstitute?: boolean) => Usecase<R, D, U> : (withValues: InferScenesInScenarioConstructor<R[D][U]>[C][K], id?: string, isSubstitute?: boolean) => Usecase<R, D, U>;
 };

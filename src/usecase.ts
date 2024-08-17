@@ -113,10 +113,6 @@ const SceneFactoryAdapter = class SceneFactoryAdapter {
 
 export type StringKeyof<T> = Extract<keyof T, string>;
 
-type InferScenario<T> = T extends abstract new (domain: string, usecase: string, id: string, isSubstitute: boolean) => infer S
-    ? S extends Scenario<NOCARE> ? S : never
-    : never;
-
 export type InferScenesInScenario<T> = T extends Scenario<infer Z extends Scenes> ? Z : never;
 
 type InferScenesInScenarioConstructor<T> = T extends abstract new (domain: string, usecase: string, id: string, isSubstitute: boolean) => infer S
@@ -247,7 +243,7 @@ const generateId = (length: number) => {
     return Array.from(crypto.getRandomValues(new Uint8Array(length))).map((n)=>S[n%S.length]).join("");
 };
 
-class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> {
+class UsecaseImple<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> {
     readonly id: string;
     #domain: D;
     #usecase: U;
@@ -354,12 +350,14 @@ class _Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof 
     }
 }
 
-export type Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> = { 
+type UsecaseContext<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]>  = {
     "domain": D;
-    "name" : U;
+    "name" : U; // The property name is name instead of usecase because it is assumed that it will be used as usecase.name when used.
     "course": Courses;
     "scene": string;
-} & _Usecase<R, D, U>;
+}
+
+export type Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> = UsecaseContext<R, D, U> & UsecaseImple<R, D, U>;
 
 // for making usecase as Discriminated Union, must use "keyof D" for type of name, not use "string".
 type ScenarioFactory<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses> = InferScenesInScenarioConstructor<R[D][U]>[C] extends Empty
@@ -379,8 +377,8 @@ const ScenarioFactory = class ScenarioFactory<R extends DomainRequirements, D ex
                         const context = Object.assign(withValues || {}, { "scene" : prop, course }) as Context<InferScenesInScenarioConstructor<R[D][U]>>;
                         const _id = id || generateId(8);
                         const s = new scenario(domain, usecase, _id, isSubstitute);
-                        const usecaseCore = new _Usecase<R, D, U>(_id, domain, usecase, context, s);
-                        return Object.freeze(Object.assign(usecaseCore, { "domain": domain, "name" : usecase, "scene": prop, course }));
+                        const usecaseImple = new UsecaseImple<R, D, U>(_id, domain, usecase, context, s);
+                        return Object.freeze(Object.assign(usecaseImple, { "domain": domain, "name" : usecase, "scene": prop, course }));
                     }
                     : Reflect.get(target, prop, receiver);
             }
