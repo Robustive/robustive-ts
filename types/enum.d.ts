@@ -1,5 +1,9 @@
 import { Empty } from "./usecase";
 type CaseWithAssociatedValues = Record<string, object>;
+type KeyFactory<T extends CaseWithAssociatedValues> = {
+    [K in keyof T]: K;
+};
+declare const KeyFactory: new <T extends CaseWithAssociatedValues>() => KeyFactory<T>;
 type SwiftEnumCase<T extends CaseWithAssociatedValues, K extends keyof T, U> = U & (T[K] extends Empty ? {
     readonly case: K;
 } : {
@@ -10,6 +14,8 @@ export type SwiftEnumCases<T extends CaseWithAssociatedValues, U = Empty> = {
 }[keyof T];
 export type SwiftEnum<T extends CaseWithAssociatedValues, U> = {
     [K in keyof T]: T[K] extends Empty ? () => SwiftEnumCase<T, K, U> : (associatedValues: T[K]) => SwiftEnumCase<T, K, U>;
+} & {
+    keys: KeyFactory<T>;
 };
 export declare const SwiftEnum: new <T extends CaseWithAssociatedValues, U = Empty>(f?: (new () => U) | undefined) => SwiftEnum<T, U>;
 export {};

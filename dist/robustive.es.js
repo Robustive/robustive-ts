@@ -109,7 +109,7 @@ const generateId = (length) => {
   const S = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   return Array.from(crypto.getRandomValues(new Uint8Array(length))).map((n) => S[n % S.length]).join("");
 };
-class _Usecase {
+class UsecaseImple {
   constructor(id, domain, usecase, initialContext, scenario) {
     __privateAdd(this, _domain, void 0);
     __privateAdd(this, _usecase, void 0);
@@ -208,8 +208,8 @@ const ScenarioFactory = class ScenarioFactory2 {
           const context = Object.assign(withValues || {}, { "scene": prop, course });
           const _id = id || generateId(8);
           const s = new scenario(domain, usecase, _id, isSubstitute);
-          const usecaseCore = new _Usecase(_id, domain, usecase, context, s);
-          return Object.freeze(Object.assign(usecaseCore, { "domain": domain, "name": usecase, "scene": prop, course }));
+          const usecaseImple = new UsecaseImple(_id, domain, usecase, context, s);
+          return Object.freeze(Object.assign(usecaseImple, { "domain": domain, "name": usecase, "scene": prop, course }));
         } : Reflect.get(target, prop, receiver);
       }
     });
@@ -260,8 +260,18 @@ class ActorNotAuthorizedToInteractIn extends Error {
     super(`The actor "${actor.constructor.name}" is not authorized to interact on usecase "${String(usecase)}" of domain "${String(domain)}".`);
   }
 }
+const KeyFactory = class KeyFactory2 {
+  constructor() {
+    return new Proxy(this, {
+      get(target, prop, receiver) {
+        return typeof prop === "string" && !(prop in target) ? prop : Reflect.get(target, prop, receiver);
+      }
+    });
+  }
+};
 const SwiftEnum = class SwiftEnum2 {
   constructor(f) {
+    this.keys = new KeyFactory();
     return new Proxy(this, {
       get(target, prop, receiver) {
         return typeof prop === "string" && !(prop in target) ? (associatedValues) => f !== void 0 ? Object.freeze(Object.assign(new f(), Object.assign(associatedValues || {}, { case: prop }))) : Object.freeze(Object.assign(associatedValues || {}, { case: prop })) : Reflect.get(target, prop, receiver);
