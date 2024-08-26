@@ -27,6 +27,15 @@ export type Context<Z extends Scenes> = {
         course: C;
     } & Flatten<Z>[K] : never;
 }[keyof Flatten<Z>];
+export type ContextOf<Z extends Scenes, C extends Courses> = {
+    readonly [S in keyof Z[C]]: Z[C][S] extends Empty ? {
+        scene: S;
+        course: C;
+    } : {
+        scene: S;
+        course: C;
+    } & Z[C][S];
+}[keyof Z[C]];
 type SceneFactory<Z extends Scenes, C extends Courses> = Z[C] extends Empty ? Empty : {
     [K in keyof Z[C]]: K;
 };
@@ -91,7 +100,7 @@ type InteractResultContext<R extends DomainRequirements, D extends keyof R, U ex
         endAt: Date;
         elapsedTimeMs: number;
         performedScenario: Context<Z>[];
-        lastSceneContext: Context<Z>;
+        lastSceneContext: ContextOf<Z, "goals">;
     };
     [InteractResultType.failure]: {
         id: string;
