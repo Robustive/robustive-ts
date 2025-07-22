@@ -77,6 +77,11 @@ type ContextFactory<Z extends Scenes, C extends Courses> = Z[C] extends Empty
             : (withValues: Z[C][K]) => Context<Z>
     };
 
+/**
+ * The context factory held by the scenario instance passed as an argument 
+ * to the next function of ScenarioDelegate, which is called during the execution
+ * of a usecase scenario. This is used to create the context for the next scene.
+ */
 const ContextFactory = class ContextFactory<C extends Courses> {
     constructor(course: C) {
         return new Proxy(this, {
@@ -133,7 +138,7 @@ export interface IScenarioDelegate<Z extends Scenes> {
 }
 
 
-// for declaring like "SomeScenario<SomeScenes>", cannot use generics paramaters "D extends UsecaseDefinitions, U extends keyof D"
+// for declaring like "SomeScenario<SomeScenes>", cannot use generics parameters "D extends UsecaseDefinitions, U extends keyof D"
 export class Scenario<Z extends Scenes> {
     readonly domain: string;
     readonly usecase: string;
@@ -375,8 +380,13 @@ type ScenarioFactory<R extends DomainRequirements, D extends keyof R, U extends 
             : (withValues: InferScenesInScenarioConstructor<R[D][U]>[C][K], id?: string, isSubstitute?: boolean) => Usecase<R, D, U>
     };
 
+/**
+ * The scenario factory invoked via the UsecaseSelector and CourseSelector
+ * held by the Robustive instance. This is used to create an instance of the usecase
+ * to be executed.
+ */
 const ScenarioFactory = class ScenarioFactory<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses> {
-    constructor(domain: D, usecase: U, course: C, scenario: new (odmain: D, usecase: U, id: string, isSubstitute: boolean) => Scenario<NOCARE>) {
+    constructor(domain: D, usecase: U, course: C, scenario: new (domain: D, usecase: U, id: string, isSubstitute: boolean) => Scenario<NOCARE>) {
         return new Proxy(this, {
             get(target, prop, receiver) {
                 return ((typeof prop === "string") && !(prop in target))
@@ -421,8 +431,8 @@ export type UsecaseSelector<R extends DomainRequirements, D extends StringKeyof<
 
 export const UsecaseSelector = class UsecaseSelector<R extends DomainRequirements, D extends StringKeyof<R>> {
     readonly keys: UsecaseKeys<R, D>;
-    constructor(domain: D, scenarioConstuctors: UsecaseScenarios<D>) {
-        const usecaseKeys = Object.keys(scenarioConstuctors);
+    constructor(domain: D, scenarioConstructors: UsecaseScenarios<D>) {
+        const usecaseKeys = Object.keys(scenarioConstructors);
         this.keys = usecaseKeys.reduce<Record<string, string>>((keys, usecase) => {
             keys[usecase] = usecase;
             return keys;
@@ -430,12 +440,12 @@ export const UsecaseSelector = class UsecaseSelector<R extends DomainRequirement
         return new Proxy(this, {
             get(target, prop, receiver) { // prop = usecase
                 return ((typeof prop === "string") && usecaseKeys.includes(prop))
-                    ? new CourseSelector<R, D, StringKeyof<UsecaseScenarios<D>>>(domain, prop, scenarioConstuctors[prop])
+                    ? new CourseSelector<R, D, StringKeyof<UsecaseScenarios<D>>>(domain, prop, scenarioConstructors[prop])
                     : Reflect.get(target, prop, receiver);
             }
         });
     }
-} as new <R extends DomainRequirements, D extends StringKeyof<R>>(domain: D, scenarioConstuctors: UsecaseScenarios<D>) => UsecaseSelector<R, D>;
+} as new <R extends DomainRequirements, D extends StringKeyof<R>>(domain: D, scenarioConstructors: UsecaseScenarios<D>) => UsecaseSelector<R, D>;
 
 export type Robustive<R extends DomainRequirements> = Record<"keys", DomainKeys<R>> & {
     [D in StringKeyof<R>] : UsecaseSelector<R, D>;

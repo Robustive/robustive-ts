@@ -228,15 +228,15 @@ class CourseSelector {
   }
 }
 const UsecaseSelector = class UsecaseSelector2 {
-  constructor(domain, scenarioConstuctors) {
-    const usecaseKeys = Object.keys(scenarioConstuctors);
+  constructor(domain, scenarioConstructors) {
+    const usecaseKeys = Object.keys(scenarioConstructors);
     this.keys = usecaseKeys.reduce((keys, usecase) => {
       keys[usecase] = usecase;
       return keys;
     }, {});
     return new Proxy(this, {
       get(target, prop, receiver) {
-        return typeof prop === "string" && usecaseKeys.includes(prop) ? new CourseSelector(domain, prop, scenarioConstuctors[prop]) : Reflect.get(target, prop, receiver);
+        return typeof prop === "string" && usecaseKeys.includes(prop) ? new CourseSelector(domain, prop, scenarioConstructors[prop]) : Reflect.get(target, prop, receiver);
       }
     });
   }

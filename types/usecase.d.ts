@@ -152,7 +152,7 @@ export declare class CourseSelector<R extends DomainRequirements, D extends keyo
 export type UsecaseSelector<R extends DomainRequirements, D extends StringKeyof<R>> = Record<"keys", UsecaseKeys<R, D>> & {
     [U in keyof R[D]]: CourseSelector<R, D, U>;
 };
-export declare const UsecaseSelector: new <R extends DomainRequirements, D extends Extract<keyof R, string>>(domain: D, scenarioConstuctors: UsecaseScenarios<D>) => UsecaseSelector<R, D>;
+export declare const UsecaseSelector: new <R extends DomainRequirements, D extends Extract<keyof R, string>>(domain: D, scenarioConstructors: UsecaseScenarios<D>) => UsecaseSelector<R, D>;
 export type Robustive<R extends DomainRequirements> = Record<"keys", DomainKeys<R>> & {
     [D in StringKeyof<R>]: UsecaseSelector<R, D>;
 };
