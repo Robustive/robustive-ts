@@ -107,9 +107,17 @@ type UsecaseKeys<R extends DomainRequirements, D extends keyof R> = {
     [U in keyof R[D]]: U
 };
 
-type SceneFactoryAdapter<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses> = InferScenesInScenarioConstructor<R[D][U]>[C] extends Empty
+type InferScenes<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> = {
+  [U in keyof R[D]]: R[D][U] extends {
+    new (domain: string, usecase: string, id: string, isSubstitute?: boolean): Scenario<infer S extends Scenes>
+  }
+    ? S
+    : never
+}[U];
+
+type SceneFactoryAdapter<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses> = InferScenes<R, D, U>[C] extends Empty
     ? Empty // for Empty alternative
-    : SceneFactory<InferScenesInScenarioConstructor<R[D][U]>, C>;
+    : SceneFactory<InferScenes<R, D, U>, C>;
 
 const SceneFactoryAdapter = class SceneFactoryAdapter {
     constructor() {
@@ -126,10 +134,6 @@ const SceneFactoryAdapter = class SceneFactoryAdapter {
 export type StringKeyof<T> = Extract<keyof T, string>;
 
 export type InferScenesInScenario<T> = T extends Scenario<infer Z extends Scenes> ? Z : never;
-
-type InferScenesInScenarioConstructor<T> = T extends abstract new (domain: string, usecase: string, id: string, isSubstitute: boolean) => infer S
-    ? S extends Scenario<infer Z> ? Z : never
-    : never;
 
 export interface IScenarioDelegate<Z extends Scenes> {
     next?<A extends IActor<NOCARE>, S extends Scenario<Z>>(to: Context<Z>, actor: A, scenario: S): Promise<Context<Z>>;
@@ -372,12 +376,12 @@ type UsecaseContext<R extends DomainRequirements, D extends keyof R, U extends k
 export type Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> = UsecaseContext<R, D, U> & UsecaseImple<R, D, U>;
 
 // for making usecase as Discriminated Union, must use "keyof D" for type of name, not use "string".
-type ScenarioFactory<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses> = InferScenesInScenarioConstructor<R[D][U]>[C] extends Empty
+type ScenarioFactory<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses> = InferScenes<R, D, U>[C] extends Empty
     ? Empty // for Empty alternative
     : {
-        [K in keyof InferScenesInScenarioConstructor<R[D][U]>[C]]: InferScenesInScenarioConstructor<R[D][U]>[C][K] extends Empty
+        [K in keyof InferScenes<R, D, U>[C]]: InferScenes<R, D, U>[C][K] extends Empty
             ? (id?: string, isSubstitute?: boolean) => Usecase<R, D, U>
-            : (withValues: InferScenesInScenarioConstructor<R[D][U]>[C][K], id?: string, isSubstitute?: boolean) => Usecase<R, D, U>
+            : (withValues: InferScenes<R, D, U>[C][K], id?: string, isSubstitute?: boolean) => Usecase<R, D, U>
     };
 
 /**
@@ -391,7 +395,7 @@ const ScenarioFactory = class ScenarioFactory<R extends DomainRequirements, D ex
             get(target, prop, receiver) {
                 return ((typeof prop === "string") && !(prop in target))
                     ? (withValues?: ContextualValues, id?: string, isSubstitute = false) => {
-                        const context = Object.assign(withValues || {}, { "scene" : prop, course }) as Context<InferScenesInScenarioConstructor<R[D][U]>>;
+                        const context = Object.assign(withValues || {}, { "scene" : prop, course }) as Context<InferScenes<R, D, U>>;
                         const _id = id || generateId(8);
                         const s = new scenario(domain, usecase, _id, isSubstitute);
                         const usecaseImple = new UsecaseImple<R, D, U>(_id, domain, usecase, context, s);
