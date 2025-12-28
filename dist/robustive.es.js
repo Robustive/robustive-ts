@@ -75,8 +75,17 @@ class Scenario {
     }
     return Promise.reject(new Error());
   }
+  proceedUntilResponse(req, res, to, actor) {
+    if (this.delegate !== void 0 && this.delegate.proceedUntilResponse !== void 0) {
+      return this.delegate.proceedUntilResponse(req, res, to, actor, this);
+    }
+    return Promise.reject(new Error());
+  }
   just(next) {
     return Promise.resolve(next);
+  }
+  respond(next, status) {
+    return Promise.resolve({ ...next, status });
   }
   authorize(actor, domain, usecase) {
     if (this.delegate !== void 0 && this.delegate.authorize !== void 0) {
@@ -124,15 +133,24 @@ class UsecaseImple {
   set(delegate) {
     __privateGet(this, _scenario).delegate = delegate;
   }
-  progress(actor) {
+  handleRequest(req, res, actor) {
+    const recursive = (req2, res2, scenario2) => {
+      const lastScene = scenario2.slice(-1)[0];
+      if (lastScene.course === "goals" || lastScene.status) {
+        return Promise.resolve(lastScene);
+      }
+      return __privateGet(this, _scenario).proceedUntilResponse(req2, res2, lastScene, actor).then((nextScene) => {
+        __privateSet(this, _currentContext, nextScene);
+        scenario2.push(nextScene);
+        return recursive(req2, res2, scenario2);
+      });
+    };
     if (__privateGet(this, _scenario).authorize && !__privateGet(this, _scenario).authorize(actor, __privateGet(this, _domain), __privateGet(this, _usecase))) {
       const err = new ActorNotAuthorizedToInteractIn(actor, __privateGet(this, _domain), __privateGet(this, _usecase));
       return Promise.reject(err);
     }
-    return __privateGet(this, _scenario).next(__privateGet(this, _currentContext), actor).then((nextScene) => {
-      __privateSet(this, _currentContext, nextScene);
-      return nextScene;
-    });
+    const scenario = [__privateGet(this, _currentContext)];
+    return recursive(req, res, scenario);
   }
   interactedBy(actor) {
     const startAt = new Date();

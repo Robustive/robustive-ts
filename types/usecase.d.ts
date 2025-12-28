@@ -1,4 +1,5 @@
 import { IActor } from "./actor";
+import { Request, Response } from "express";
 export type NOCARE = any;
 type PreFlatten<Z> = {
     [C in keyof Z as C extends string ? Z[C] extends Empty ? never : `${C}.${keyof Z[C] & string}` : C]: Z[C];
@@ -64,8 +65,12 @@ export type InferScenes<R extends DomainRequirements, D extends keyof R, U exten
 type SceneFactoryAdapter<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses> = InferScenes<R, D, U>[C] extends Empty ? Empty : SceneFactory<InferScenes<R, D, U>, C>;
 declare const SceneFactoryAdapter: new <R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends "basics" | "alternatives" | "goals">() => SceneFactoryAdapter<R, D, U, C>;
 export type StringKeyof<T> = Extract<keyof T, string>;
+export type ResponseContext<Z extends Scenes> = Context<Z> & {
+    status?: number;
+};
 export interface IScenarioDelegate<Z extends Scenes> {
     next?<A extends IActor<NOCARE>, S extends Scenario<Z>>(to: Context<Z>, actor: A, scenario: S): Promise<Context<Z>>;
+    proceedUntilResponse?<A extends IActor<NOCARE>, S extends Scenario<Z>>(req: Request, res: Response, to: Context<Z>, actor: A, scenario: S): Promise<ResponseContext<Z>>;
     authorize?<A extends IActor<NOCARE>, R extends DomainRequirements, D extends StringKeyof<R>, U extends StringKeyof<R[D]>>(actor: A, domain: D, usecase: U): boolean;
     complete?<A extends IActor<NOCARE>, R extends DomainRequirements, D extends keyof R, U extends keyof R[D]>(withResult: InteractResult<R, D, U, A, Z>): void;
 }
@@ -85,7 +90,9 @@ export declare class Scenario<Z extends Scenes> {
     readonly goals: ContextFactory<Z, Goals>;
     constructor(domain: string, usecase: string, id: string, isSubstitute?: boolean);
     next<A extends IActor<NOCARE>>(to: Context<Z>, actor: A): Promise<Context<Z>>;
+    proceedUntilResponse<A extends IActor<NOCARE>>(req: Request, res: Response, to: Context<Z>, actor: A): Promise<ResponseContext<Z>>;
     just(next: Context<Z>): Promise<Context<Z>>;
+    respond(next: Context<Z>, status: number): Promise<ResponseContext<Z>>;
     authorize<A extends IActor<NOCARE>, R extends DomainRequirements, D extends StringKeyof<R>, U extends StringKeyof<R[D]>>(actor: A, domain: D, usecase: U): boolean;
     complete<A extends IActor<NOCARE>, R extends DomainRequirements, D extends keyof R, U extends keyof R[D]>(withResult: InteractResult<R, D, U, A, Z>): void;
 }
@@ -127,7 +134,7 @@ declare class UsecaseImple<R extends DomainRequirements, D extends keyof R, U ex
     readonly id: string;
     constructor(id: string, domain: D, usecase: U, initialContext: Context<InferScenes<R, D, U>>, scenario: Scenario<InferScenes<R, D, U>>);
     set(delegate: IScenarioDelegate<InferScenes<R, D, U>>): void;
-    progress<User, A extends IActor<User>>(actor: A): Promise<Context<InferScenes<R, D, U>>>;
+    handleRequest<User, A extends IActor<User>>(req: Request, res: Response, actor: A): Promise<ResponseContext<InferScenes<R, D, U>>>;
     interactedBy<User, A extends IActor<User>>(actor: A): Promise<InteractResult<R, D, U, A, InferScenes<R, D, U>>>;
 }
 type UsecaseContext<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> = {

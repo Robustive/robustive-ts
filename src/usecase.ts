@@ -1,4 +1,5 @@
 import { IActor } from "./actor";
+import { Request, Response } from "express";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type NOCARE = any;
@@ -135,8 +136,10 @@ export type StringKeyof<T> = Extract<keyof T, string>;
 
 // export type InferScenesInScenario<T> = T extends Scenario<infer Z extends Scenes> ? Z : never;
 
+export type ResponseContext<Z extends Scenes> = Context<Z> & { status?: number }
 export interface IScenarioDelegate<Z extends Scenes> {
     next?<A extends IActor<NOCARE>, S extends Scenario<Z>>(to: Context<Z>, actor: A, scenario: S): Promise<Context<Z>>;
+    proceedUntilResponse?<A extends IActor<NOCARE>, S extends Scenario<Z>>(req: Request, res: Response, to: Context<Z>, actor: A, scenario: S): Promise<ResponseContext<Z>>;
     authorize?<A extends IActor<NOCARE>, R extends DomainRequirements, D extends StringKeyof<R>, U extends StringKeyof<R[D]>>(actor: A, domain: D, usecase: U): boolean;
     complete?<A extends IActor<NOCARE>, R extends DomainRequirements, D extends keyof R, U extends keyof R[D]>(withResult: InteractResult<R, D, U, A, Z>): void;
 }
@@ -179,9 +182,20 @@ export class Scenario<Z extends Scenes> {
         }
         return Promise.reject(new Error());
     }
-    
-    just(next: Context<Z>) : Promise<Context<Z>> {
+
+    proceedUntilResponse<A extends IActor<NOCARE>>(req: Request, res: Response, to: Context<Z>, actor: A): Promise<ResponseContext<Z>> {
+        if (this.delegate !== undefined && this.delegate.proceedUntilResponse !== undefined) {
+            return this.delegate.proceedUntilResponse(req, res, to, actor, this);
+        }
+        return Promise.reject(new Error());
+    }
+
+    just(next: Context<Z>): Promise<Context<Z>> {
         return Promise.resolve(next);
+    }
+
+    respond(next: Context<Z>, status: number): Promise<ResponseContext<Z>> {
+        return Promise.resolve({ ...next, status });
     }
 
     authorize<A extends IActor<NOCARE>, R extends DomainRequirements, D extends StringKeyof<R>, U extends StringKeyof<R[D]>>(actor: A, domain: D, usecase: U): boolean {
@@ -278,21 +292,29 @@ class UsecaseImple<R extends DomainRequirements, D extends keyof R, U extends ke
         this.#scenario.delegate = delegate;
     }
 
-    /**
-     * Step through the usecase scenario from the current scene to the next scene.
-     * @param actor 
-     * @returns 
-     */
-    progress<User, A extends IActor<User>>(actor: A): Promise<Context<InferScenes<R, D, U>>> {
+    handleRequest<User, A extends IActor<User>>(req: Request, res: Response, actor: A): Promise<ResponseContext<InferScenes<R, D, U>>> {
+        const recursive = (req: Request, res: Response, scenario: ResponseContext<InferScenes<R, D, U>>[]): Promise<ResponseContext<InferScenes<R, D, U>>> => {
+            const lastScene = scenario.slice(-1)[0];
+            if (lastScene.course === "goals" || lastScene.status) { // exit criteria
+                return Promise.resolve(lastScene);
+            }
+
+            return this.#scenario.proceedUntilResponse(req, res, lastScene, actor)
+                .then((nextScene) => {
+                    this.#currentContext = nextScene;
+                    scenario.push(nextScene);
+                    return recursive(req, res, scenario);
+                });
+        };
+
         if (this.#scenario.authorize && !this.#scenario.authorize(actor, this.#domain as Extract<D, string>, this.#usecase as Extract<U, string>)) {
             const err = new ActorNotAuthorizedToInteractIn(actor, this.#domain, this.#usecase);
             return Promise.reject(err);
         }
-        return this.#scenario.next(this.#currentContext, actor)
-            .then(nextScene => {
-                this.#currentContext = nextScene;
-                return nextScene;
-            });
+
+        const scenario: ResponseContext<InferScenes<R, D, U>>[] = [this.#currentContext as ResponseContext<InferScenes<R, D, U>>];
+
+        return recursive(req, res, scenario);
     }
 
     /**
