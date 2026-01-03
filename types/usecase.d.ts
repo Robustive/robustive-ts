@@ -1,5 +1,6 @@
 import { IActor } from "./actor";
 import { Request, Response } from "express";
+import { SwiftEnum, SwiftEnumCases } from "./enum";
 export type NOCARE = any;
 type PreFlatten<Z> = {
     [C in keyof Z as C extends string ? Z[C] extends Empty ? never : `${C}.${keyof Z[C] & string}` : C]: Z[C];
@@ -65,8 +66,16 @@ export type InferScenes<R extends DomainRequirements, D extends keyof R, U exten
 type SceneFactoryAdapter<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses> = InferScenes<R, D, U>[C] extends Empty ? Empty : SceneFactory<InferScenes<R, D, U>, C>;
 declare const SceneFactoryAdapter: new <R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends "basics" | "alternatives" | "goals">() => SceneFactoryAdapter<R, D, U, C>;
 export type StringKeyof<T> = Extract<keyof T, string>;
+type ResponseStatusContext = {
+    normal: {
+        statusCode: number;
+    };
+    responded: Empty;
+};
+export declare const ResponseStatus: SwiftEnum<ResponseStatusContext, Empty>;
+export type ResponseStatus = SwiftEnumCases<ResponseStatusContext>;
 export type ResponseContext<Z extends Scenes> = Context<Z> & {
-    status?: number;
+    status?: ResponseStatus;
 };
 export interface IScenarioDelegate<Z extends Scenes> {
     next?<A extends IActor<NOCARE>, S extends Scenario<Z>>(to: Context<Z>, actor: A, scenario: S): Promise<Context<Z>>;
@@ -92,7 +101,7 @@ export declare class Scenario<Z extends Scenes> {
     next<A extends IActor<NOCARE>>(to: Context<Z>, actor: A): Promise<Context<Z>>;
     proceedUntilResponse<A extends IActor<NOCARE>>(req: Request, res: Response, to: Context<Z>, actor: A): Promise<ResponseContext<Z>>;
     just(next: Context<Z>): Promise<Context<Z>>;
-    respond(next: Context<Z>, status: number): Promise<ResponseContext<Z>>;
+    respond(next: Context<Z>, status?: ResponseStatus): Promise<ResponseContext<Z>>;
     authorize<A extends IActor<NOCARE>, R extends DomainRequirements, D extends StringKeyof<R>, U extends StringKeyof<R[D]>>(actor: A, domain: D, usecase: U): boolean;
     complete<A extends IActor<NOCARE>, R extends DomainRequirements, D extends keyof R, U extends keyof R[D]>(withResult: InteractResult<R, D, U, A, Z>): void;
 }

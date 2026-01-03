@@ -25,6 +25,25 @@ class AbstractActor {
 class Nobody extends AbstractActor {
 }
 const isNobody = (actor) => actor.constructor === Nobody;
+const KeyFactory = class KeyFactory2 {
+  constructor() {
+    return new Proxy(this, {
+      get(target, prop, receiver) {
+        return typeof prop === "string" && !(prop in target) ? prop : Reflect.get(target, prop, receiver);
+      }
+    });
+  }
+};
+const SwiftEnum = class SwiftEnum2 {
+  constructor(f) {
+    this.keys = new KeyFactory();
+    return new Proxy(this, {
+      get(target, prop, receiver) {
+        return typeof prop === "string" && !(prop in target) ? (associatedValues) => f !== void 0 ? Object.freeze(Object.assign(new f(), Object.assign(associatedValues || {}, { case: prop }))) : Object.freeze(Object.assign(associatedValues || {}, { case: prop })) : Reflect.get(target, prop, receiver);
+      }
+    });
+  }
+};
 const SceneFactory = class SceneFactory2 {
   constructor() {
     return new Proxy(this, {
@@ -54,6 +73,7 @@ const SceneFactoryAdapter = class SceneFactoryAdapter2 {
     });
   }
 };
+const ResponseStatus = new SwiftEnum();
 class Scenario {
   constructor(domain, usecase, id, isSubstitute = false) {
     this.domain = domain;
@@ -84,7 +104,7 @@ class Scenario {
   just(next) {
     return Promise.resolve(next);
   }
-  respond(next, status) {
+  respond(next, status = ResponseStatus.normal({ statusCode: 200 })) {
     return Promise.resolve({ ...next, status });
   }
   authorize(actor, domain, usecase) {
@@ -278,23 +298,4 @@ class ActorNotAuthorizedToInteractIn extends Error {
     super(`The actor "${actor.constructor.name}" is not authorized to interact on usecase "${String(usecase)}" of domain "${String(domain)}".`);
   }
 }
-const KeyFactory = class KeyFactory2 {
-  constructor() {
-    return new Proxy(this, {
-      get(target, prop, receiver) {
-        return typeof prop === "string" && !(prop in target) ? prop : Reflect.get(target, prop, receiver);
-      }
-    });
-  }
-};
-const SwiftEnum = class SwiftEnum2 {
-  constructor(f) {
-    this.keys = new KeyFactory();
-    return new Proxy(this, {
-      get(target, prop, receiver) {
-        return typeof prop === "string" && !(prop in target) ? (associatedValues) => f !== void 0 ? Object.freeze(Object.assign(new f(), Object.assign(associatedValues || {}, { case: prop }))) : Object.freeze(Object.assign(associatedValues || {}, { case: prop })) : Reflect.get(target, prop, receiver);
-      }
-    });
-  }
-};
-export { AbstractActor, ActorNotAuthorizedToInteractIn, CourseSelector, InteractResultType, Nobody, Robustive, Scenario, SwiftEnum, UsecaseSelector, isNobody };
+export { AbstractActor, ActorNotAuthorizedToInteractIn, CourseSelector, InteractResultType, Nobody, ResponseStatus, Robustive, Scenario, SwiftEnum, UsecaseSelector, isNobody };

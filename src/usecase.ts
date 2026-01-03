@@ -1,5 +1,6 @@
 import { IActor } from "./actor";
 import { Request, Response } from "express";
+import { SwiftEnum, SwiftEnumCases } from "./enum";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type NOCARE = any;
@@ -136,7 +137,15 @@ export type StringKeyof<T> = Extract<keyof T, string>;
 
 // export type InferScenesInScenario<T> = T extends Scenario<infer Z extends Scenes> ? Z : never;
 
-export type ResponseContext<Z extends Scenes> = Context<Z> & { status?: number }
+type ResponseStatusContext = {
+    normal: { statusCode: number; }
+    responded: Empty
+}
+
+export const ResponseStatus = new SwiftEnum<ResponseStatusContext>();
+export type ResponseStatus = SwiftEnumCases<ResponseStatusContext>;
+
+export type ResponseContext<Z extends Scenes> = Context<Z> & { status?: ResponseStatus };
 export interface IScenarioDelegate<Z extends Scenes> {
     next?<A extends IActor<NOCARE>, S extends Scenario<Z>>(to: Context<Z>, actor: A, scenario: S): Promise<Context<Z>>;
     proceedUntilResponse?<A extends IActor<NOCARE>, S extends Scenario<Z>>(req: Request, res: Response, to: Context<Z>, actor: A, scenario: S): Promise<ResponseContext<Z>>;
@@ -194,7 +203,7 @@ export class Scenario<Z extends Scenes> {
         return Promise.resolve(next);
     }
 
-    respond(next: Context<Z>, status: number): Promise<ResponseContext<Z>> {
+    respond(next: Context<Z>, status: ResponseStatus = ResponseStatus.normal({ statusCode : 200 })): Promise<ResponseContext<Z>> {
         return Promise.resolve({ ...next, status });
     }
 
