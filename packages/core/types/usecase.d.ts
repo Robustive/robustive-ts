@@ -122,9 +122,12 @@ type InteractResultCase<R extends DomainRequirements, D extends keyof R, U exten
 export type InteractResult<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], A extends IActor<NOCARE>, Z extends Scenes> = {
     [K in keyof InteractResultContext<R, D, U, A, Z>]: InteractResultCase<R, D, U, A, Z, K>;
 }[keyof InteractResultContext<R, D, U, A, Z>];
-declare class UsecaseImple<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> {
-    #private;
+export declare class UsecaseImple<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> {
     readonly id: string;
+    private _domain;
+    private _usecase;
+    private _currentContext;
+    private _scenario;
     constructor(id: string, domain: D, usecase: U, initialContext: Context<InferScenes<R, D, U>>, scenario: Scenario<InferScenes<R, D, U>>);
     set(delegate: IScenarioDelegate<InferScenes<R, D, U>>): void;
     progress<User, A extends IActor<User>>(actor: A): Promise<Context<InferScenes<R, D, U>>>;

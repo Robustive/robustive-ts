@@ -259,23 +259,23 @@ const generateId = (length: number) => {
     return Array.from(crypto.getRandomValues(new Uint8Array(length))).map((n)=>S[n%S.length]).join("");
 };
 
-class UsecaseImple<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> {
+export class UsecaseImple<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> {
     readonly id: string;
-    #domain: D;
-    #usecase: U;
-    #currentContext: Context<InferScenes<R, D, U>>;
-    #scenario: Scenario<InferScenes<R, D, U>>;
+    private _domain: D;
+    private _usecase: U;
+    private _currentContext: Context<InferScenes<R, D, U>>;
+    private _scenario: Scenario<InferScenes<R, D, U>>;
 
     constructor(id: string, domain: D, usecase: U, initialContext: Context<InferScenes<R, D, U>>, scenario: Scenario<InferScenes<R, D, U>>) {
         this.id = id;
-        this.#domain = domain;
-        this.#usecase = usecase;
-        this.#currentContext = initialContext;
-        this.#scenario = scenario;
+        this._domain = domain;
+        this._usecase = usecase;
+        this._currentContext = initialContext;
+        this._scenario = scenario;
     }
 
     set(delegate: IScenarioDelegate<InferScenes<R, D, U>>): void {
-        this.#scenario.delegate = delegate;
+        this._scenario.delegate = delegate;
     }
 
     /**
@@ -284,13 +284,13 @@ class UsecaseImple<R extends DomainRequirements, D extends keyof R, U extends ke
      * @returns 
      */
     progress<User, A extends IActor<User>>(actor: A): Promise<Context<InferScenes<R, D, U>>> {
-        if (this.#scenario.authorize && !this.#scenario.authorize(actor, this.#domain as Extract<D, string>, this.#usecase as Extract<U, string>)) {
-            const err = new ActorNotAuthorizedToInteractIn(actor, this.#domain, this.#usecase);
+        if (this._scenario.authorize && !this._scenario.authorize(actor, this._domain as Extract<D, string>, this._usecase as Extract<U, string>)) {
+            const err = new ActorNotAuthorizedToInteractIn(actor, this._domain, this._usecase);
             return Promise.reject(err);
         }
-        return this.#scenario.next(this.#currentContext, actor)
+        return this._scenario.next(this._currentContext, actor)
             .then(nextScene => {
-                this.#currentContext = nextScene;
+                this._currentContext = nextScene;
                 return nextScene;
             });
     }
@@ -310,20 +310,19 @@ class UsecaseImple<R extends DomainRequirements, D extends keyof R, U extends ke
                 return Promise.resolve(scenario);
             }
 
-            return this.#scenario.next(lastScene, actor)
+            return this._scenario.next(lastScene, actor)
                 .then((nextScene) => {
-                    this.#currentContext = nextScene;
+                    this._currentContext = nextScene;
                     scenario.push(nextScene);
                     return recursive(scenario);
                 });
         };
 
-        if (this.#scenario.authorize && !this.#scenario.authorize(actor, this.#domain as Extract<D, string>, this.#usecase as Extract<U, string>)) {
-            const err = new ActorNotAuthorizedToInteractIn(actor, this.#domain, this.#usecase);
+        if (this._scenario.authorize && !this._scenario.authorize(actor, this._domain as Extract<D, string>, this._usecase as Extract<U, string>)) {
+            const err = new ActorNotAuthorizedToInteractIn(actor, this._domain, this._usecase);
             return Promise.reject(err);
         }
-        const scenario: Context<InferScenes<R, D, U>>[] = [this.#currentContext];
-
+        const scenario: Context<InferScenes<R, D, U>>[] = [this._currentContext];
         return recursive(scenario)
             .then((performedScenario) => {
                 const endAt = new Date();
@@ -332,15 +331,15 @@ class UsecaseImple<R extends DomainRequirements, D extends keyof R, U extends ke
                 const result = InteractResult.success({
                     id: this.id
                     , actor
-                    , domain: this.#domain
-                    , usecase : this.#usecase
+                    , domain: this._domain
+                    , usecase : this._usecase
                     , startAt
                     , endAt
                     , elapsedTimeMs
                     , performedScenario
                     , lastSceneContext
                 });
-                if (this.#scenario.complete) { this.#scenario.complete(result); }
+                if (this._scenario.complete) { this._scenario.complete(result); }
                 return result;
             })
             .catch((err) => {
@@ -351,8 +350,8 @@ class UsecaseImple<R extends DomainRequirements, D extends keyof R, U extends ke
                 const result =  InteractResult.failure({
                     id: this.id
                     , actor
-                    , domain: this.#domain
-                    , usecase : this.#usecase
+                    , domain: this._domain
+                    , usecase : this._usecase
                     , startAt
                     , endAt
                     , elapsedTimeMs
@@ -360,7 +359,7 @@ class UsecaseImple<R extends DomainRequirements, D extends keyof R, U extends ke
                     , failedSceneContext : lastSceneContext
                     , error : err
                 });
-                if (this.#scenario.complete) { this.#scenario.complete(result); }
+                if (this._scenario.complete) { this._scenario.complete(result); }
                 return result;
             });
     }
