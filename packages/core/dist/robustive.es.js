@@ -36,11 +36,10 @@ const SceneFactoryAdapter = class SceneFactoryAdapter2 {
   }
 };
 class Scenario {
-  constructor(domain, usecase, id, isSubstitute = false) {
+  constructor(domain, usecase, id) {
     this.domain = domain;
     this.usecase = usecase;
     this.id = id;
-    this.isSubstitute = isSubstitute;
     this.keys = {
       basics: new SceneFactory(),
       alternatives: new SceneFactory(),
@@ -184,10 +183,10 @@ const ScenarioFactory = class ScenarioFactory2 {
   constructor(domain, usecase, course, scenario) {
     return new Proxy(this, {
       get(target, prop, receiver) {
-        return typeof prop === "string" && !(prop in target) ? (withValues, id, isSubstitute = false) => {
+        return typeof prop === "string" && !(prop in target) ? (withValues, id) => {
           const context = Object.assign(withValues || {}, { "scene": prop, course });
           const _id = id || generateId(8);
-          const s = new scenario(domain, usecase, _id, isSubstitute);
+          const s = new scenario(domain, usecase, _id);
           const usecaseImple = new UsecaseImple(_id, domain, usecase, context, s);
           return Object.freeze(Object.assign(usecaseImple, { "domain": domain, "name": usecase, "scene": prop, course }));
         } : Reflect.get(target, prop, receiver);
