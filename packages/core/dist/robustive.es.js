@@ -90,13 +90,20 @@ const generateId = (length) => {
   const S = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   return Array.from(crypto.getRandomValues(new Uint8Array(length))).map((n) => S[n % S.length]).join("");
 };
+const currentContextStore = /* @__PURE__ */ new WeakMap();
 class UsecaseImple {
   constructor(id, domain, usecase, initialContext, scenario) {
     this.id = id;
     this._domain = domain;
     this._usecase = usecase;
-    this._currentContext = initialContext;
     this._scenario = scenario;
+    currentContextStore.set(this, initialContext);
+  }
+  get currentContext() {
+    return currentContextStore.get(this);
+  }
+  set currentContext(context) {
+    currentContextStore.set(this, context);
   }
   set(delegate) {
     this._scenario.delegate = delegate;
@@ -106,8 +113,8 @@ class UsecaseImple {
       const err = new ActorNotAuthorizedToInteractIn(actor, this._domain, this._usecase);
       return Promise.reject(err);
     }
-    return this._scenario.next(this._currentContext, actor).then((nextScene) => {
-      this._currentContext = nextScene;
+    return this._scenario.next(this.currentContext, actor).then((nextScene) => {
+      this.currentContext = nextScene;
       return nextScene;
     });
   }
@@ -120,7 +127,7 @@ class UsecaseImple {
         return Promise.resolve(scenario2);
       }
       return this._scenario.next(lastScene, actor).then((nextScene) => {
-        this._currentContext = nextScene;
+        this.currentContext = nextScene;
         scenario2.push(nextScene);
         return recursive(scenario2);
       });
@@ -129,7 +136,7 @@ class UsecaseImple {
       const err = new ActorNotAuthorizedToInteractIn(actor, this._domain, this._usecase);
       return Promise.reject(err);
     }
-    const scenario = [this._currentContext];
+    const scenario = [this.currentContext];
     return recursive(scenario).then((performedScenario) => {
       const endAt = new Date();
       const elapsedTimeMs = endAt.getTime() - startAt.getTime();
@@ -253,3 +260,4 @@ const SwiftEnum = class SwiftEnum2 {
   }
 };
 export { AbstractActor, ActorNotAuthorizedToInteractIn, CourseSelector, InteractResultType, Nobody, Robustive, Scenario, SwiftEnum, UsecaseImple, UsecaseSelector, isNobody };
+//# sourceMappingURL=robustive.es.js.map

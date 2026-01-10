@@ -1,5 +1,6 @@
 import { Context, Scenes, IActor, InferScenes, DomainRequirements, NOCARE, Empty, SwiftEnum, SwiftEnumCases } from "robustive-ts";
 import { Request, Response } from "express";
+export type Self = any;
 type ResponseStatusContext = {
     normal: {
         statusCode: number;

@@ -14,6 +14,9 @@ import {
 } from "robustive-ts";
 import { Request, Response } from "express";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type Self = any;
+
 type ResponseStatusContext = {
     normal: { statusCode: number; }
     responded: Empty
@@ -66,8 +69,7 @@ UsecaseImple.prototype.handleRequest = function <R extends DomainRequirements, D
     res: Response,
     actor: A
 ): Promise<ResponseContext<InferScenes<R, D, U>>> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const self = this as any;
+    const self = this as Self;
     const recursive = (req: Request, res: Response, scenario: ResponseContext<InferScenes<R, D, U>>[]): Promise<ResponseContext<InferScenes<R, D, U>>> => {
         const lastScene = scenario.slice(-1)[0];
         if (lastScene.course === "goals" || lastScene.status) { // exit criteria
@@ -76,7 +78,7 @@ UsecaseImple.prototype.handleRequest = function <R extends DomainRequirements, D
 
         return self._scenario.proceedUntilResponse(req, res, lastScene, actor)
             .then((nextScene: ResponseContext<InferScenes<R, D, U>>) => {
-                self._currentContext = nextScene;
+                self.currentContext = nextScene;
                 scenario.push(nextScene);
                 return recursive(req, res, scenario);
             });
@@ -87,7 +89,7 @@ UsecaseImple.prototype.handleRequest = function <R extends DomainRequirements, D
         return Promise.reject(err);
     }
 
-    const scenario: ResponseContext<InferScenes<R, D, U>>[] = [self._currentContext as ResponseContext<InferScenes<R, D, U>>];
+    const scenario: ResponseContext<InferScenes<R, D, U>>[] = [self.currentContext as ResponseContext<InferScenes<R, D, U>>];
 
     return recursive(req, res, scenario);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

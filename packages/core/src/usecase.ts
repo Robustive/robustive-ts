@@ -259,19 +259,29 @@ const generateId = (length: number) => {
     return Array.from(crypto.getRandomValues(new Uint8Array(length))).map((n)=>S[n%S.length]).join("");
 };
 
+// Manage currentContext with WeakMap because UsecaseImple instances are frozen.
+const currentContextStore = new WeakMap<object, NOCARE>();
+
 export class UsecaseImple<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> {
     readonly id: string;
-    private _domain: D;
-    private _usecase: U;
-    private _currentContext: Context<InferScenes<R, D, U>>;
-    private _scenario: Scenario<InferScenes<R, D, U>>;
+    private readonly _domain: D;
+    private readonly _usecase: U;
+    private readonly _scenario: Scenario<InferScenes<R, D, U>>;
 
     constructor(id: string, domain: D, usecase: U, initialContext: Context<InferScenes<R, D, U>>, scenario: Scenario<InferScenes<R, D, U>>) {
         this.id = id;
         this._domain = domain;
         this._usecase = usecase;
-        this._currentContext = initialContext;
         this._scenario = scenario;
+        currentContextStore.set(this, initialContext);
+    }
+
+    get currentContext(): Context<InferScenes<R, D, U>> {
+        return currentContextStore.get(this);
+    }
+
+    set currentContext(context: Context<InferScenes<R, D, U>>) {
+        currentContextStore.set(this, context);
     }
 
     set(delegate: IScenarioDelegate<InferScenes<R, D, U>>): void {
@@ -288,9 +298,9 @@ export class UsecaseImple<R extends DomainRequirements, D extends keyof R, U ext
             const err = new ActorNotAuthorizedToInteractIn(actor, this._domain, this._usecase);
             return Promise.reject(err);
         }
-        return this._scenario.next(this._currentContext, actor)
+        return this._scenario.next(this.currentContext, actor)
             .then(nextScene => {
-                this._currentContext = nextScene;
+                this.currentContext = nextScene;
                 return nextScene;
             });
     }
@@ -312,7 +322,7 @@ export class UsecaseImple<R extends DomainRequirements, D extends keyof R, U ext
 
             return this._scenario.next(lastScene, actor)
                 .then((nextScene) => {
-                    this._currentContext = nextScene;
+                    this.currentContext = nextScene;
                     scenario.push(nextScene);
                     return recursive(scenario);
                 });
@@ -322,7 +332,7 @@ export class UsecaseImple<R extends DomainRequirements, D extends keyof R, U ext
             const err = new ActorNotAuthorizedToInteractIn(actor, this._domain, this._usecase);
             return Promise.reject(err);
         }
-        const scenario: Context<InferScenes<R, D, U>>[] = [this._currentContext];
+        const scenario: Context<InferScenes<R, D, U>>[] = [this.currentContext];
         return recursive(scenario)
             .then((performedScenario) => {
                 const endAt = new Date();
