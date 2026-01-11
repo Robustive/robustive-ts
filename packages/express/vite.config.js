@@ -12,7 +12,11 @@ export default defineConfig({
         },
         rollupOptions: {
             treeshake: false, // prevent losing side effects (prototype extension)
-            external: ["robustive-ts", "express"],
+            external: [
+                "robustive-ts",
+                "express",
+                "node:async_hooks"
+            ],
             output: {
                 globals: {
                     "robustive-ts": "Robustive",

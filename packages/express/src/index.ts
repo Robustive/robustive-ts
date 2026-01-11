@@ -13,6 +13,7 @@ import {
     ActorNotAuthorizedToInteractIn
 } from "robustive-ts";
 import { Request, Response } from "express";
+import { AsyncLocalStorage } from "node:async_hooks";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Self = any;
@@ -30,6 +31,10 @@ export type ResponseContext<Z extends Scenes> = Context<Z> & { status?: Response
 declare module "robustive-ts" {
     interface IScenarioDelegate<Z extends Scenes> {
         proceedUntilResponse?<A extends IActor<NOCARE>, S extends Scenario<Z>>(req: Request, res: Response, to: Context<Z>, actor: A, scenario: S): Promise<ResponseContext<Z>>;
+        /**
+         * When set, it will be executed after exiting the recursive handleRequest. Please use this to ensure that no cleanup or finalization steps within the use case are missed.
+         */
+        gracefullyComplete?(where: string): Promise<void>;
     }
 
     interface Scenario<Z extends Scenes> {
@@ -63,11 +68,16 @@ Scenario.prototype.respond = function <Z extends Scenes>(
     return Promise.resolve({ ...next, status });
 };
 
-UsecaseImple.prototype.handleRequest = function <R extends DomainRequirements, D extends keyof R, U extends keyof R[D], User, A extends IActor<User>>(
+/**
+ * By passing an AsyncLocalStorage instance and an initial value to the als and defaultContext arguments, the values stored in AsyncLocalStorage become available as the execution context during the use case.
+ */
+UsecaseImple.prototype.handleRequest = function <R extends DomainRequirements, D extends keyof R, U extends keyof R[D], User, A extends IActor<User>, T extends object>(
     this: UsecaseImple<R, D, U>,
     req: Request,
     res: Response,
-    actor: A
+    actor: A,
+    als?: AsyncLocalStorage<T>,
+    defaultContext?: T
 ): Promise<ResponseContext<InferScenes<R, D, U>>> {
     const self = this as Self;
     const recursive = (req: Request, res: Response, scenario: ResponseContext<InferScenes<R, D, U>>[]): Promise<ResponseContext<InferScenes<R, D, U>>> => {
@@ -91,6 +101,16 @@ UsecaseImple.prototype.handleRequest = function <R extends DomainRequirements, D
 
     const scenario: ResponseContext<InferScenes<R, D, U>>[] = [self.currentContext as ResponseContext<InferScenes<R, D, U>>];
 
-    return recursive(req, res, scenario);
+    if (als) {
+        return als.run(defaultContext ?? {} as T, async () => {
+            try {
+                return await recursive(req, res, scenario);
+            } finally {
+                await self._scenario.delegate?.gracefullyComplete?.("handleRequest.finally");
+            }
+        });
+    } else {
+        return recursive(req, res, scenario);
+    }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } as any;

@@ -141,7 +141,6 @@ export interface IScenarioDelegate<Z extends Scenes> {
     complete?<A extends IActor<NOCARE>, R extends DomainRequirements, D extends keyof R, U extends keyof R[D]>(withResult: InteractResult<R, D, U, A, Z>): void;
 }
 
-
 // for declaring like "SomeScenario<SomeScenes>", cannot use generics parameters "D extends UsecaseDefinitions, U extends keyof D"
 export class Scenario<Z extends Scenes> {
     readonly domain: string;
