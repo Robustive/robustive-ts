@@ -9,7 +9,7 @@ Scenario.prototype.proceedUntilResponse = function(req, res, to, actor) {
 Scenario.prototype.respond = function(next, status = ResponseStatus.normal({ statusCode: 200 })) {
   return Promise.resolve({ ...next, status });
 };
-UsecaseImple.prototype.handleRequest = function(req, res, actor, als, defaultContext) {
+UsecaseImple.prototype.handleRequest = function(req, res, actor, recursiveWrapper) {
   const self = this;
   const recursive = (req2, res2, scenario2) => {
     const lastScene = scenario2.slice(-1)[0];
@@ -27,15 +27,8 @@ UsecaseImple.prototype.handleRequest = function(req, res, actor, als, defaultCon
     return Promise.reject(err);
   }
   const scenario = [self.currentContext];
-  if (als) {
-    return als.run(defaultContext != null ? defaultContext : {}, async () => {
-      var _a, _b;
-      try {
-        return await recursive(req, res, scenario);
-      } finally {
-        await ((_b = (_a = self._scenario.delegate) == null ? void 0 : _a.gracefullyComplete) == null ? void 0 : _b.call(_a, "handleRequest.finally"));
-      }
-    });
+  if (recursiveWrapper) {
+    return recursiveWrapper(() => recursive(req, res, scenario));
   } else {
     return recursive(req, res, scenario);
   }

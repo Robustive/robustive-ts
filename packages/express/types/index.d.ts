@@ -15,7 +15,6 @@ export type ResponseContext<Z extends Scenes> = Context<Z> & {
 declare module "robustive-ts" {
     interface IScenarioDelegate<Z extends Scenes> {
         proceedUntilResponse?<A extends IActor<NOCARE>, S extends Scenario<Z>>(req: Request, res: Response, to: Context<Z>, actor: A, scenario: S): Promise<ResponseContext<Z>>;
-        gracefullyComplete?(where: string): Promise<void>;
     }
     interface Scenario<Z extends Scenes> {
         proceedUntilResponse<A extends IActor<NOCARE>>(req: Request, res: Response, to: Context<Z>, actor: A): Promise<ResponseContext<Z>>;
