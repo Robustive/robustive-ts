@@ -38,7 +38,7 @@ declare module "robustive-ts" {
     }
 
     interface UsecaseImple<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> {
-        handleRequest<User, A extends IActor<User>>(req: Request, res: Response, actor: A): Promise<ResponseContext<InferScenes<R, D, U>>>;
+        handleRequest<User, A extends IActor<User>>(req: Request, res: Response, actor: A, recursiveWrapper?: (recursive: () => Promise<ResponseContext<InferScenes<R, D, U>>>) => Promise<ResponseContext<InferScenes<R, D, U>>>,): Promise<ResponseContext<InferScenes<R, D, U>>>;
     }
 }
 
