@@ -14,7 +14,7 @@ UsecaseImple.prototype.handleRequest = function(req, res, actor, recursiveWrappe
   const recursive = (req2, res2, scenario2) => {
     const lastScene = scenario2.slice(-1)[0];
     if (lastScene.course === "goals" || lastScene.status) {
-      return Promise.resolve(lastScene);
+      return Promise.resolve(scenario2);
     }
     return self._scenario.proceedUntilResponse(req2, res2, lastScene, actor).then((nextScene) => {
       self.currentContext = nextScene;

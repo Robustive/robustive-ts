@@ -38,7 +38,7 @@ declare module "robustive-ts" {
     }
 
     interface UsecaseImple<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> {
-        handleRequest<User, A extends IActor<User>>(req: Request, res: Response, actor: A, recursiveWrapper?: (recursive: () => Promise<ResponseContext<InferScenes<R, D, U>>>) => Promise<ResponseContext<InferScenes<R, D, U>>>,): Promise<ResponseContext<InferScenes<R, D, U>>>;
+        handleRequest<User, A extends IActor<User>>(req: Request, res: Response, actor: A, recursiveWrapper?: (recursive: () => Promise<ResponseContext<InferScenes<R, D, U>>[]>) => Promise<ResponseContext<InferScenes<R, D, U>>[]>,): Promise<ResponseContext<InferScenes<R, D, U>>[]>;
     }
 }
 
@@ -71,13 +71,13 @@ UsecaseImple.prototype.handleRequest = function <R extends DomainRequirements, D
     req: Request,
     res: Response,
     actor: A,
-    recursiveWrapper?: (recursive: () => Promise<ResponseContext<InferScenes<R, D, U>>>) => Promise<ResponseContext<InferScenes<R, D, U>>>,
-): Promise<ResponseContext<InferScenes<R, D, U>>> {
+    recursiveWrapper?: (recursive: () => Promise<ResponseContext<InferScenes<R, D, U>>[]>) => Promise<ResponseContext<InferScenes<R, D, U>>[]   >,
+): Promise<ResponseContext<InferScenes<R, D, U>>[]> {
     const self = this as Self;
-    const recursive = (req: Request, res: Response, scenario: ResponseContext<InferScenes<R, D, U>>[]): Promise<ResponseContext<InferScenes<R, D, U>>> => {
+    const recursive = (req: Request, res: Response, scenario: ResponseContext<InferScenes<R, D, U>>[]): Promise<ResponseContext<InferScenes<R, D, U>>[]> => {
         const lastScene = scenario.slice(-1)[0];
         if (lastScene.course === "goals" || lastScene.status) { // exit criteria
-            return Promise.resolve(lastScene);
+            return Promise.resolve(scenario);
         }
 
         return self._scenario.proceedUntilResponse(req, res, lastScene, actor)
