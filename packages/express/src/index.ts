@@ -10,7 +10,9 @@ import {
     Empty,
     SwiftEnum,
     SwiftEnumCases,
-    ActorNotAuthorizedToInteractIn
+    ActorNotAuthorizedToInteractIn,
+    InteractResult,
+    InteractResultType
 } from "robustive-ts";
 import { Request, Response } from "express";
 
@@ -38,7 +40,7 @@ declare module "robustive-ts" {
     }
 
     interface UsecaseImple<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> {
-        handleRequest<User, A extends IActor<User>>(req: Request, res: Response, actor: A, recursiveWrapper?: (recursive: () => Promise<ResponseContext<InferScenes<R, D, U>>[]>) => Promise<ResponseContext<InferScenes<R, D, U>>[]>,): Promise<ResponseContext<InferScenes<R, D, U>>[]>;
+        handleRequest<User, A extends IActor<User>>(req: Request, res: Response, actor: A, recursiveWrapper?: (recursive: () => Promise<HandleResult<R, D, U, A, InferScenes<R, D, U>>>) => Promise<HandleResult<R, D, U, A, InferScenes<R, D, U>>>): Promise<HandleResult<R, D, U, A, InferScenes<R, D, U>>>;
     }
 }
 
@@ -63,6 +65,43 @@ Scenario.prototype.respond = function <Z extends Scenes>(
     return Promise.resolve({ ...next, status });
 };
 
+export const HandleResultType = {
+    success: "success"
+    , failure: "failure"
+} as const;
+
+type HandleResultContext<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], A extends IActor<NOCARE>, Z extends Scenes> = {
+    [HandleResultType.success] : {
+        id: string;
+        actor : A;
+        domain : D;
+        usecase : U;
+        startAt : Date;
+        endAt : Date;
+        elapsedTimeMs : number;
+        performedScenario : ResponseContext<Z>[];
+        lastSceneContext : ResponseContext<Z>;
+    };
+    [HandleResultType.failure] : {
+        id: string;
+        actor : A;
+        domain : D;
+        usecase : U;
+        startAt : Date;
+        endAt : Date;
+        elapsedTimeMs : number;
+        performedScenario : ResponseContext<Z>[];
+        failedSceneContext : ResponseContext<Z>;
+        error: Error;
+    };
+};
+
+type HandleResultCase<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], A extends IActor<NOCARE>, Z extends Scenes, K extends keyof HandleResultContext<R, D, U, A, Z>> = Record<"type", K> & HandleResultContext<R, D, U, A, Z>[K];
+
+export type HandleResult<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], A extends IActor<NOCARE>, Z extends Scenes> = { 
+    [K in keyof HandleResultContext<R, D, U, A, Z>] : HandleResultCase<R, D, U, A, Z, K>;
+}[keyof HandleResultContext<R, D, U, A, Z>];
+
 /**
  * @param recursiveWrapper An optional function to wrap the recursive calls. Useful for integrating with async context tracking.
  */
@@ -71,9 +110,10 @@ UsecaseImple.prototype.handleRequest = function <R extends DomainRequirements, D
     req: Request,
     res: Response,
     actor: A,
-    recursiveWrapper?: (recursive: () => Promise<ResponseContext<InferScenes<R, D, U>>[]>) => Promise<ResponseContext<InferScenes<R, D, U>>[]   >,
-): Promise<ResponseContext<InferScenes<R, D, U>>[]> {
+    recursiveWrapper?: (recursive: () => Promise<HandleResult<R, D, U, A, InferScenes<R, D, U>>>) => Promise<HandleResult<R, D, U, A, InferScenes<R, D, U>>>
+): Promise<HandleResult<R, D, U, A, InferScenes<R, D, U>>> {
     const self = this as Self;
+    const startAt = new Date();
     const recursive = (req: Request, res: Response, scenario: ResponseContext<InferScenes<R, D, U>>[]): Promise<ResponseContext<InferScenes<R, D, U>>[]> => {
         const lastScene = scenario.slice(-1)[0];
         if (lastScene.course === "goals" || lastScene.status) { // exit criteria
@@ -95,10 +135,47 @@ UsecaseImple.prototype.handleRequest = function <R extends DomainRequirements, D
 
     const scenario: ResponseContext<InferScenes<R, D, U>>[] = [self.currentContext as ResponseContext<InferScenes<R, D, U>>];
 
+    const execRecursion = () => recursive(req, res, scenario)
+        .then((performedScenario) => {
+            const endAt = new Date();
+            const elapsedTimeMs = (endAt.getTime() - startAt.getTime());
+            const lastSceneContext = performedScenario.slice(-1)[0];
+            return {
+                type: HandleResultType.success
+                , id: self.id
+                , actor
+                , domain: self._domain
+                , usecase : self._usecase
+                , startAt
+                , endAt
+                , elapsedTimeMs
+                , performedScenario
+                , lastSceneContext
+            } as HandleResultCase<R, D, U, A, InferScenes<R, D, U>, "success">;
+        })
+        .catch((error: Error) => {
+            const endAt = new Date();
+            const elapsedTimeMs = (endAt.getTime() - startAt.getTime());
+            const lastSceneContext = scenario.slice(-1)[0];
+            return {
+                type: HandleResultType.failure
+                , id: self.id
+                , actor
+                , domain: self._domain
+                , usecase : self._usecase
+                , startAt
+                , endAt
+                , elapsedTimeMs
+                , performedScenario : scenario
+                , failedSceneContext : lastSceneContext
+                , error
+            } as HandleResultCase<R, D, U, A, InferScenes<R, D, U>, "failure">;
+        });
+
     if (recursiveWrapper) {
-        return recursiveWrapper(() => recursive(req, res, scenario));
+        return recursiveWrapper(execRecursion);
     } else {
-        return recursive(req, res, scenario);
+        return execRecursion();
     }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } as any;

@@ -155,8 +155,8 @@ class UsecaseImple {
         this._scenario.complete(result);
       }
       return result;
-    }).catch((err) => {
-      console.error(err);
+    }).catch((error) => {
+      console.error(error);
       const endAt = new Date();
       const elapsedTimeMs = endAt.getTime() - startAt.getTime();
       const lastSceneContext = scenario.slice(-1)[0];
@@ -170,7 +170,7 @@ class UsecaseImple {
         elapsedTimeMs,
         performedScenario: scenario,
         failedSceneContext: lastSceneContext,
-        error: err
+        error
       });
       if (this._scenario.complete) {
         this._scenario.complete(result);

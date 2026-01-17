@@ -9,8 +9,13 @@ Scenario.prototype.proceedUntilResponse = function(req, res, to, actor) {
 Scenario.prototype.respond = function(next, status = ResponseStatus.normal({ statusCode: 200 })) {
   return Promise.resolve({ ...next, status });
 };
+const HandleResultType = {
+  success: "success",
+  failure: "failure"
+};
 UsecaseImple.prototype.handleRequest = function(req, res, actor, recursiveWrapper) {
   const self = this;
+  const startAt = new Date();
   const recursive = (req2, res2, scenario2) => {
     const lastScene = scenario2.slice(-1)[0];
     if (lastScene.course === "goals" || lastScene.status) {
@@ -27,11 +32,45 @@ UsecaseImple.prototype.handleRequest = function(req, res, actor, recursiveWrappe
     return Promise.reject(err);
   }
   const scenario = [self.currentContext];
+  const execRecursion = () => recursive(req, res, scenario).then((performedScenario) => {
+    const endAt = new Date();
+    const elapsedTimeMs = endAt.getTime() - startAt.getTime();
+    const lastSceneContext = performedScenario.slice(-1)[0];
+    return {
+      type: HandleResultType.success,
+      id: self.id,
+      actor,
+      domain: self._domain,
+      usecase: self._usecase,
+      startAt,
+      endAt,
+      elapsedTimeMs,
+      performedScenario,
+      lastSceneContext
+    };
+  }).catch((error) => {
+    const endAt = new Date();
+    const elapsedTimeMs = endAt.getTime() - startAt.getTime();
+    const lastSceneContext = scenario.slice(-1)[0];
+    return {
+      type: HandleResultType.failure,
+      id: self.id,
+      actor,
+      domain: self._domain,
+      usecase: self._usecase,
+      startAt,
+      endAt,
+      elapsedTimeMs,
+      performedScenario: scenario,
+      failedSceneContext: lastSceneContext,
+      error
+    };
+  });
   if (recursiveWrapper) {
-    return recursiveWrapper(() => recursive(req, res, scenario));
+    return recursiveWrapper(execRecursion);
   } else {
-    return recursive(req, res, scenario);
+    return execRecursion();
   }
 };
-export { ResponseStatus };
+export { HandleResultType, ResponseStatus };
 //# sourceMappingURL=robustive-express.es.js.map

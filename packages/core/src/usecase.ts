@@ -349,8 +349,8 @@ export class UsecaseImple<R extends DomainRequirements, D extends keyof R, U ext
                 if (this._scenario.complete) { this._scenario.complete(result); }
                 return result;
             })
-            .catch((err) => {
-                console.error(err);
+            .catch((error) => {
+                console.error(error);
                 const endAt = new Date();
                 const elapsedTimeMs = (endAt.getTime() - startAt.getTime());
                 const lastSceneContext = scenario.slice(-1)[0];
@@ -364,7 +364,7 @@ export class UsecaseImple<R extends DomainRequirements, D extends keyof R, U ext
                     , elapsedTimeMs
                     , performedScenario : scenario
                     , failedSceneContext : lastSceneContext
-                    , error : err
+                    , error
                 });
                 if (this._scenario.complete) { this._scenario.complete(result); }
                 return result;
