@@ -22,6 +22,7 @@ jobs:
           scope: "@robustive"
 
       - run: corepack enable
+      - run: corepack prepare yarn@4.12.0 --activate
       - run: yarn install --immutable
 
       - run: yarn workspaces foreach -pt --no-private run build
