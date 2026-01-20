@@ -11,9 +11,7 @@ import {
     SwiftEnum,
     SwiftEnumCases,
     ActorNotAuthorizedToInteractIn,
-    InteractResult,
-    InteractResultType
-} from "robustive-ts";
+} from "@robustive/robustive-ts";
 import { Request, Response } from "express";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -29,7 +27,7 @@ export type ResponseStatus = SwiftEnumCases<ResponseStatusContext>;
 
 export type ResponseContext<Z extends Scenes> = Context<Z> & { status?: ResponseStatus };
 
-declare module "robustive-ts" {
+declare module "@robustive/robustive-ts" {
     interface IScenarioDelegate<Z extends Scenes> {
         proceedUntilResponse?<A extends IActor<NOCARE>, S extends Scenario<Z>>(req: Request, res: Response, to: Context<Z>, actor: A, scenario: S): Promise<ResponseContext<Z>>;
     }

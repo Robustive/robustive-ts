@@ -1,4 +1,4 @@
-import { Context, Scenes, IActor, InferScenes, DomainRequirements, NOCARE, Empty, SwiftEnum, SwiftEnumCases } from "robustive-ts";
+import { Context, Scenes, IActor, InferScenes, DomainRequirements, NOCARE, Empty, SwiftEnum, SwiftEnumCases } from "@robustive/robustive-ts";
 import { Request, Response } from "express";
 export type Self = any;
 type ResponseStatusContext = {
@@ -12,7 +12,7 @@ export type ResponseStatus = SwiftEnumCases<ResponseStatusContext>;
 export type ResponseContext<Z extends Scenes> = Context<Z> & {
     status?: ResponseStatus;
 };
-declare module "robustive-ts" {
+declare module "@robustive/robustive-ts" {
     interface IScenarioDelegate<Z extends Scenes> {
         proceedUntilResponse?<A extends IActor<NOCARE>, S extends Scenario<Z>>(req: Request, res: Response, to: Context<Z>, actor: A, scenario: S): Promise<ResponseContext<Z>>;
     }
