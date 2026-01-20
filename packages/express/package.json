@@ -1,6 +1,6 @@
 {
-  "name": "robustive-ts-express",
-  "version": "0.2.0",
+  "name": "@robustive/robustive-ts-express",
+  "version": "1.1.0",
   "description": "Express add-on for robustive-ts.",
   "main": "./dist/robustive-express.umd.js",
   "module": "./dist/robustive-express.es.js",
@@ -35,11 +35,12 @@
   },
   "author": "Yusuke SAITO <yusuke.saito@jibunstyle.com>",
   "license": "Apache-2.0",
-  "dependencies": {
-    "express": "^5.2.1",
-    "robustive-ts": "workspace:^"
+  "peerDependencies": {
+    "@robustive/robustive-ts": "^1.1.0",
+    "express": "^5.2.1"
   },
   "devDependencies": {
+    "@robustive/robustive-ts": "workspace:^",
     "@types/express": "^5",
     "@types/node": "^20.11.26",
     "shx": "^0.3.4",
