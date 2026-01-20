@@ -12,6 +12,10 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -25,9 +29,7 @@ jobs:
       - run: corepack prepare yarn@4.12.0 --activate
       - run: yarn install --immutable
 
-      - run: yarn workspaces foreach -pt --no-private run build
+      - run: yarn workspaces foreach --all -pt --no-private run build
 
       # core → express の順で publish（-t が依存順）
-      - run: yarn workspaces foreach -t --no-private npm publish
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
+      - run: yarn workspaces foreach --all -t --no-private npm publish
