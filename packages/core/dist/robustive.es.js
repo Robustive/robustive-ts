@@ -1,22 +1,3 @@
-var __accessCheck = (obj, member, msg) => {
-  if (!member.has(obj))
-    throw TypeError("Cannot " + msg);
-};
-var __privateGet = (obj, member, getter) => {
-  __accessCheck(obj, member, "read from private field");
-  return getter ? getter.call(obj) : member.get(obj);
-};
-var __privateAdd = (obj, member, value) => {
-  if (member.has(obj))
-    throw TypeError("Cannot add the same private member more than once");
-  member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
-};
-var __privateSet = (obj, member, value, setter) => {
-  __accessCheck(obj, member, "write to private field");
-  setter ? setter.call(obj, value) : member.set(obj, value);
-  return value;
-};
-var _domain, _usecase, _currentContext, _scenario;
 class AbstractActor {
   constructor(user = null) {
     this.user = user;
@@ -55,11 +36,10 @@ const SceneFactoryAdapter = class SceneFactoryAdapter2 {
   }
 };
 class Scenario {
-  constructor(domain, usecase, id, isSubstitute = false) {
+  constructor(domain, usecase, id) {
     this.domain = domain;
     this.usecase = usecase;
     this.id = id;
-    this.isSubstitute = isSubstitute;
     this.keys = {
       basics: new SceneFactory(),
       alternatives: new SceneFactory(),
@@ -109,28 +89,31 @@ const generateId = (length) => {
   const S = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   return Array.from(crypto.getRandomValues(new Uint8Array(length))).map((n) => S[n % S.length]).join("");
 };
+const currentContextStore = /* @__PURE__ */ new WeakMap();
 class UsecaseImple {
   constructor(id, domain, usecase, initialContext, scenario) {
-    __privateAdd(this, _domain, void 0);
-    __privateAdd(this, _usecase, void 0);
-    __privateAdd(this, _currentContext, void 0);
-    __privateAdd(this, _scenario, void 0);
     this.id = id;
-    __privateSet(this, _domain, domain);
-    __privateSet(this, _usecase, usecase);
-    __privateSet(this, _currentContext, initialContext);
-    __privateSet(this, _scenario, scenario);
+    this._domain = domain;
+    this._usecase = usecase;
+    this._scenario = scenario;
+    currentContextStore.set(this, initialContext);
+  }
+  get currentContext() {
+    return currentContextStore.get(this);
+  }
+  set currentContext(context) {
+    currentContextStore.set(this, context);
   }
   set(delegate) {
-    __privateGet(this, _scenario).delegate = delegate;
+    this._scenario.delegate = delegate;
   }
   progress(actor) {
-    if (__privateGet(this, _scenario).authorize && !__privateGet(this, _scenario).authorize(actor, __privateGet(this, _domain), __privateGet(this, _usecase))) {
-      const err = new ActorNotAuthorizedToInteractIn(actor, __privateGet(this, _domain), __privateGet(this, _usecase));
+    if (this._scenario.authorize && !this._scenario.authorize(actor, this._domain, this._usecase)) {
+      const err = new ActorNotAuthorizedToInteractIn(actor, this._domain, this._usecase);
       return Promise.reject(err);
     }
-    return __privateGet(this, _scenario).next(__privateGet(this, _currentContext), actor).then((nextScene) => {
-      __privateSet(this, _currentContext, nextScene);
+    return this._scenario.next(this.currentContext, actor).then((nextScene) => {
+      this.currentContext = nextScene;
       return nextScene;
     });
   }
@@ -142,17 +125,17 @@ class UsecaseImple {
       if (lastScene.course === "goals") {
         return Promise.resolve(scenario2);
       }
-      return __privateGet(this, _scenario).next(lastScene, actor).then((nextScene) => {
-        __privateSet(this, _currentContext, nextScene);
+      return this._scenario.next(lastScene, actor).then((nextScene) => {
+        this.currentContext = nextScene;
         scenario2.push(nextScene);
         return recursive(scenario2);
       });
     };
-    if (__privateGet(this, _scenario).authorize && !__privateGet(this, _scenario).authorize(actor, __privateGet(this, _domain), __privateGet(this, _usecase))) {
-      const err = new ActorNotAuthorizedToInteractIn(actor, __privateGet(this, _domain), __privateGet(this, _usecase));
+    if (this._scenario.authorize && !this._scenario.authorize(actor, this._domain, this._usecase)) {
+      const err = new ActorNotAuthorizedToInteractIn(actor, this._domain, this._usecase);
       return Promise.reject(err);
     }
-    const scenario = [__privateGet(this, _currentContext)];
+    const scenario = [this.currentContext];
     return recursive(scenario).then((performedScenario) => {
       const endAt = new Date();
       const elapsedTimeMs = endAt.getTime() - startAt.getTime();
@@ -160,54 +143,50 @@ class UsecaseImple {
       const result = InteractResult.success({
         id: this.id,
         actor,
-        domain: __privateGet(this, _domain),
-        usecase: __privateGet(this, _usecase),
+        domain: this._domain,
+        usecase: this._usecase,
         startAt,
         endAt,
         elapsedTimeMs,
         performedScenario,
         lastSceneContext
       });
-      if (__privateGet(this, _scenario).complete) {
-        __privateGet(this, _scenario).complete(result);
+      if (this._scenario.complete) {
+        this._scenario.complete(result);
       }
       return result;
-    }).catch((err) => {
-      console.error(err);
+    }).catch((error) => {
+      console.error(error);
       const endAt = new Date();
       const elapsedTimeMs = endAt.getTime() - startAt.getTime();
       const lastSceneContext = scenario.slice(-1)[0];
       const result = InteractResult.failure({
         id: this.id,
         actor,
-        domain: __privateGet(this, _domain),
-        usecase: __privateGet(this, _usecase),
+        domain: this._domain,
+        usecase: this._usecase,
         startAt,
         endAt,
         elapsedTimeMs,
         performedScenario: scenario,
         failedSceneContext: lastSceneContext,
-        error: err
+        error
       });
-      if (__privateGet(this, _scenario).complete) {
-        __privateGet(this, _scenario).complete(result);
+      if (this._scenario.complete) {
+        this._scenario.complete(result);
       }
       return result;
     });
   }
 }
-_domain = new WeakMap();
-_usecase = new WeakMap();
-_currentContext = new WeakMap();
-_scenario = new WeakMap();
 const ScenarioFactory = class ScenarioFactory2 {
   constructor(domain, usecase, course, scenario) {
     return new Proxy(this, {
       get(target, prop, receiver) {
-        return typeof prop === "string" && !(prop in target) ? (withValues, id, isSubstitute = false) => {
+        return typeof prop === "string" && !(prop in target) ? (withValues, id) => {
           const context = Object.assign(withValues || {}, { "scene": prop, course });
           const _id = id || generateId(8);
-          const s = new scenario(domain, usecase, _id, isSubstitute);
+          const s = new scenario(domain, usecase, _id);
           const usecaseImple = new UsecaseImple(_id, domain, usecase, context, s);
           return Object.freeze(Object.assign(usecaseImple, { "domain": domain, "name": usecase, "scene": prop, course }));
         } : Reflect.get(target, prop, receiver);
@@ -279,4 +258,5 @@ const SwiftEnum = class SwiftEnum2 {
     });
   }
 };
-export { AbstractActor, ActorNotAuthorizedToInteractIn, CourseSelector, InteractResultType, Nobody, Robustive, Scenario, SwiftEnum, UsecaseSelector, isNobody };
+export { AbstractActor, ActorNotAuthorizedToInteractIn, CourseSelector, InteractResultType, Nobody, Robustive, Scenario, SwiftEnum, UsecaseImple, UsecaseSelector, isNobody };
+//# sourceMappingURL=robustive.es.js.map
