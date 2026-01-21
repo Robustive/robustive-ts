@@ -19,7 +19,7 @@ export default defineConfig({
             ],
             output: {
                 globals: {
-                    "robustive-ts": "Robustive",
+                    "@robustive/robustive-ts": "Robustive",
                     express: "express",
                 },
             },

@@ -1,5 +1,17 @@
 import { SwiftEnum, Scenario, UsecaseImple, ActorNotAuthorizedToInteractIn } from "@robustive/robustive-ts";
 const ResponseStatus = new SwiftEnum();
+class HttpMethodIsNotAuthorized extends Error {
+  constructor(domain, usecase, method) {
+    super(`"${method}" is not authorized to proceed usecase "${String(usecase)}" of domain "${String(domain)}".`);
+    this.name = "HttpMethodIsNotAuthorized";
+  }
+}
+Scenario.prototype.validateHttpMethod = function(domain, usecase, method) {
+  if (this.delegate !== void 0 && this.delegate.validateHttpMethod !== void 0) {
+    return this.delegate.validateHttpMethod(domain, usecase, method);
+  }
+  return true;
+};
 Scenario.prototype.proceedUntilResponse = function(req, res, to, actor) {
   if (this.delegate !== void 0 && this.delegate.proceedUntilResponse !== void 0) {
     return this.delegate.proceedUntilResponse(req, res, to, actor, this);
@@ -29,6 +41,10 @@ UsecaseImple.prototype.handleRequest = function(req, res, actor, recursiveWrappe
   };
   if (self._scenario.authorize && !self._scenario.authorize(actor, self._domain, self._usecase)) {
     const err = new ActorNotAuthorizedToInteractIn(actor, self._domain, self._usecase);
+    return Promise.reject(err);
+  }
+  if (self._scenario.validateHttpMethod && !self._scenario.validateHttpMethod(self._domain, self._usecase, req.method)) {
+    const err = new HttpMethodIsNotAuthorized(self._domain, self._usecase, req.method);
     return Promise.reject(err);
   }
   const scenario = [self.currentContext];
@@ -72,5 +88,5 @@ UsecaseImple.prototype.handleRequest = function(req, res, actor, recursiveWrappe
     return execRecursion();
   }
 };
-export { HandleResultType, ResponseStatus };
+export { HandleResultType, HttpMethodIsNotAuthorized, ResponseStatus };
 //# sourceMappingURL=robustive-express.es.js.map

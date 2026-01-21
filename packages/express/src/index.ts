@@ -11,6 +11,7 @@ import {
     SwiftEnum,
     SwiftEnumCases,
     ActorNotAuthorizedToInteractIn,
+    StringKeyof,
 } from "@robustive/robustive-ts";
 import { Request, Response } from "express";
 
@@ -29,10 +30,12 @@ export type ResponseContext<Z extends Scenes> = Context<Z> & { status?: Response
 
 declare module "@robustive/robustive-ts" {
     interface IScenarioDelegate<Z extends Scenes> {
+        validateHttpMethod?<R extends DomainRequirements, D extends StringKeyof<R>, U extends StringKeyof<R[D]>>(domain: D, usecase: U, method: string): boolean;
         proceedUntilResponse?<A extends IActor<NOCARE>, S extends Scenario<Z>>(req: Request, res: Response, to: Context<Z>, actor: A, scenario: S): Promise<ResponseContext<Z>>;
     }
 
     interface Scenario<Z extends Scenes> {
+        validateHttpMethod<R extends DomainRequirements, D extends StringKeyof<R>, U extends StringKeyof<R[D]>>(domain: D, usecase: U, method: string): boolean;
         proceedUntilResponse<A extends IActor<NOCARE>>(req: Request, res: Response, to: Context<Z>, actor: A): Promise<ResponseContext<Z>>;
         respond(next: Context<Z>, status?: ResponseStatus): Promise<ResponseContext<Z>>;
     }
@@ -41,6 +44,25 @@ declare module "@robustive/robustive-ts" {
         handleRequest<User, A extends IActor<User>>(req: Request, res: Response, actor: A, recursiveWrapper?: (recursive: () => Promise<HandleResult<R, D, U, A, InferScenes<R, D, U>>>) => Promise<HandleResult<R, D, U, A, InferScenes<R, D, U>>>): Promise<HandleResult<R, D, U, A, InferScenes<R, D, U>>>;
     }
 }
+
+export class HttpMethodIsNotAuthorized<Domain, Usecase> extends Error {
+    constructor(domain: Domain, usecase: Usecase, method: string) {
+        super(`"${ method }" is not authorized to proceed usecase "${ String(usecase) }" of domain "${ String(domain) }".`);
+        this.name = "HttpMethodIsNotAuthorized";
+    }
+}
+
+Scenario.prototype.validateHttpMethod = function <Z extends Scenes, R extends DomainRequirements, D extends StringKeyof<R>, U extends StringKeyof<R[D]>>(
+    this: Scenario<Z>,
+    domain: D,
+    usecase: U,
+    method: string
+): boolean {
+    if (this.delegate !== undefined && this.delegate.validateHttpMethod !== undefined) {
+        return this.delegate.validateHttpMethod(domain, usecase, method);
+    }
+    return true;
+};
 
 Scenario.prototype.proceedUntilResponse = function <Z extends Scenes, A extends IActor<NOCARE>>(
     this: Scenario<Z>,
@@ -128,6 +150,11 @@ UsecaseImple.prototype.handleRequest = function <R extends DomainRequirements, D
 
     if (self._scenario.authorize && !self._scenario.authorize(actor, self._domain as Extract<D, string>, self._usecase as Extract<U, string>)) {
         const err = new ActorNotAuthorizedToInteractIn(actor, self._domain, self._usecase);
+        return Promise.reject(err);
+    }
+
+    if (self._scenario.validateHttpMethod && !self._scenario.validateHttpMethod(self._domain, self._usecase, req.method)) {
+        const err = new HttpMethodIsNotAuthorized(self._domain, self._usecase, req.method);
         return Promise.reject(err);
     }
 
