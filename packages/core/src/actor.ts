@@ -2,7 +2,20 @@ import { DomainRequirements } from "./usecase";
 
 export interface IActor<User> {
     user: User | null;
-    isAuthorizedTo?: <R extends DomainRequirements>(domain: keyof R, usecase: keyof R[keyof R]) => boolean
+    /**
+     * Determine if the actor is authorized to perform a usecase in a domain
+     * @param domain 
+     * @param usecase 
+     * @returns 
+     */
+    isAuthorizedTo?<R extends DomainRequirements>(domain: keyof R, usecase: keyof R[keyof R]): boolean
+
+    /**
+     * Determine if the actor can access a page
+     * @param pageId 
+     * @returns 
+     */
+    canAccessPage?(pageId: string): boolean
 }
 
 export abstract class AbstractActor<User> implements IActor<User> {
@@ -11,12 +24,5 @@ export abstract class AbstractActor<User> implements IActor<User> {
         this.user = user;
     }
 
-    abstract isAuthorizedTo?: <R extends DomainRequirements>(domain: keyof R, usecase: keyof R[keyof R]) => boolean
+    abstract isAuthorizedTo?<R extends DomainRequirements>(domain: keyof R, usecase: keyof R[keyof R]): boolean;
 }
-
-export class Nobody extends AbstractActor<null> {
-    isAuthorizedTo?: (<R extends DomainRequirements>(domain: keyof R, usecase: keyof R[keyof R]) => boolean) | undefined;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const isNobody = (actor: any): actor is Nobody => actor.constructor === Nobody;

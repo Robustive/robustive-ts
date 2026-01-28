@@ -31,7 +31,7 @@ export type SwiftEnum<T extends CaseWithAssociatedValues, U> = {
         : (associatedValues: T[K]) => SwiftEnumCase<T, K, U>
 } & { keys: KeyFactory<T> }
 
-export const SwiftEnum = class SwiftEnum<T extends CaseWithAssociatedValues, U extends Object> {
+export const SwiftEnum = class SwiftEnum<T extends CaseWithAssociatedValues, U extends object> {
     keys: KeyFactory<T>;
     constructor(f?: new () => U) {
         this.keys = new KeyFactory<T>();
