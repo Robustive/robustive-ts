@@ -3,9 +3,6 @@ class AbstractActor {
     this.user = user;
   }
 }
-class Nobody extends AbstractActor {
-}
-const isNobody = (actor) => actor.constructor === Nobody;
 const SceneFactory = class SceneFactory2 {
   constructor() {
     return new Proxy(this, {
@@ -258,5 +255,5 @@ const SwiftEnum = class SwiftEnum2 {
     });
   }
 };
-export { AbstractActor, ActorNotAuthorizedToInteractIn, CourseSelector, InteractResultType, Nobody, Robustive, Scenario, SwiftEnum, UsecaseImple, UsecaseSelector, isNobody };
+export { AbstractActor, ActorNotAuthorizedToInteractIn, CourseSelector, InteractResultType, Robustive, Scenario, SwiftEnum, UsecaseImple, UsecaseSelector };
 //# sourceMappingURL=robustive.es.js.map
