@@ -5,8 +5,8 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "yarn workspaces foreach --all -pt run build",
-    "build:clean": "yarn workspaces foreach --all run build:clean",
+    "build": "yarn workspaces foreach --all -t run build",
+    "build:clean": "yarn workspaces foreach --all -p run build:clean",
     "test": "yarn workspaces run test"
   },
   "devDependencies": {
