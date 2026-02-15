@@ -1,6 +1,6 @@
 {
   "name": "@robustive/robustive-ts",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Reactive and OBjective USecase Transactor for TypeScript.",
   "main": "./dist/robustive.umd.js",
   "module": "./dist/robustive.es.js",
