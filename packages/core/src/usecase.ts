@@ -400,11 +400,21 @@ const ScenarioFactory = class ScenarioFactory<R extends DomainRequirements, D ex
         return new Proxy(this, {
             get(target, prop, receiver) {
                 return ((typeof prop === "string") && !(prop in target))
-                    ? (withValues?: ContextualValues, id?: string) => {
+                    ? (...args: unknown[]) => {
+                        let withValues: ContextualValues | undefined;
+                        let id: string | undefined;
+                        const a0 = args[0];
+                        const a1 = args[1];
+                        if (typeof a0 === "string") {
+                            id = a0;
+                            withValues = undefined;
+                        } else {
+                            withValues = a0 as ContextualValues | undefined;
+                            id = (typeof a1 === "string") ? a1 : generateId(8);
+                        }
                         const context = Object.assign(withValues || {}, { "scene" : prop, course }) as unknown as Context<InferScenes<R, D, U>>;
-                        const _id = id || generateId(8);
-                        const s = new scenario(domain, usecase, _id);
-                        const usecaseImple = new UsecaseImple<R, D, U>(_id, domain, usecase, context, s);
+                        const s = new scenario(domain, usecase, id);
+                        const usecaseImple = new UsecaseImple<R, D, U>(id, domain, usecase, context, s);
                         return Object.freeze(Object.assign(usecaseImple, { "domain": domain, "name" : usecase, "scene": prop, course }));
                     }
                     : Reflect.get(target, prop, receiver);

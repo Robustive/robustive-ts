@@ -180,11 +180,21 @@ const ScenarioFactory = class ScenarioFactory2 {
   constructor(domain, usecase, course, scenario) {
     return new Proxy(this, {
       get(target, prop, receiver) {
-        return typeof prop === "string" && !(prop in target) ? (withValues, id) => {
+        return typeof prop === "string" && !(prop in target) ? (...args) => {
+          let withValues;
+          let id;
+          const a0 = args[0];
+          const a1 = args[1];
+          if (typeof a0 === "string") {
+            id = a0;
+            withValues = void 0;
+          } else {
+            withValues = a0;
+            id = typeof a1 === "string" ? a1 : generateId(8);
+          }
           const context = Object.assign(withValues || {}, { "scene": prop, course });
-          const _id = id || generateId(8);
-          const s = new scenario(domain, usecase, _id);
-          const usecaseImple = new UsecaseImple(_id, domain, usecase, context, s);
+          const s = new scenario(domain, usecase, id);
+          const usecaseImple = new UsecaseImple(id, domain, usecase, context, s);
           return Object.freeze(Object.assign(usecaseImple, { "domain": domain, "name": usecase, "scene": prop, course }));
         } : Reflect.get(target, prop, receiver);
       }
