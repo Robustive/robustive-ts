@@ -467,18 +467,39 @@ export const UsecaseSelector = class UsecaseSelector<R extends DomainRequirement
     }
 } as new <R extends DomainRequirements, D extends StringKeyof<R>>(domain: D, scenarioConstructors: UsecaseScenarios<D>) => UsecaseSelector<R, D>;
 
-export type Robustive<R extends DomainRequirements> = Record<"keys", DomainKeys<R>> & {
+export type Robustive<R extends DomainRequirements> = Record<"keys", DomainKeys<R>> & Record<"typeGuards", {
+    [D in StringKeyof<R>] : {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        [U in keyof R[D]] : (scenario: Scenario<any>) => scenario is Scenario<InferScenes<R, D, U>>
+    }
+}> & {
     [D in StringKeyof<R>] : UsecaseSelector<R, D>;
 };
 
-export const Robustive = class Robustive<R extends DomainRequirements> {
+export const Robustive = class _Robustive<R extends DomainRequirements> {
     readonly keys: DomainKeys<R>;
+    readonly typeGuards: Robustive<R>["typeGuards"];
     constructor(requirements: R) {
         const domainKeys = Object.keys(requirements);
         this.keys = domainKeys.reduce<Record<string, string>>((keys, domain) => {
             keys[domain] = domain;
             return keys;
         }, {}) as DomainKeys<R>;
+        this.typeGuards = domainKeys.reduce<Record<string, Record<string, (scenario: Scenario<NOCARE>) => boolean>>>((guards, domain) => {
+            const usecaseConstructors = requirements[domain];
+            const usecaseKeys = Object.keys(usecaseConstructors);
+            guards[domain] = usecaseKeys.reduce<Record<string, (scenario: Scenario<NOCARE>) => boolean>>((usecaseGuards, usecase) => {
+                const scenarioConstructor = usecaseConstructors[usecase];
+                usecaseGuards[usecase] = (scenario: Scenario<NOCARE>): scenario is Scenario<InferScenes<R, typeof domain, typeof usecase>> => {
+                    return scenario instanceof scenarioConstructor
+                        && scenario.domain === domain
+                        && scenario.usecase === usecase;
+                };
+                return usecaseGuards;
+            }, {}) as Record<string, (scenario: Scenario<NOCARE>) => boolean>;
+            return guards;
+        }, {}) as Robustive<R>["typeGuards"];
+
         return new Proxy(this, {
             get(target, prop, receiver) { // prop = domain
                 return ((typeof prop === "string") && domainKeys.includes(prop))

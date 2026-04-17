@@ -227,12 +227,24 @@ const UsecaseSelector = class UsecaseSelector2 {
     });
   }
 };
-const Robustive = class Robustive2 {
+const Robustive = class _Robustive {
   constructor(requirements) {
     const domainKeys = Object.keys(requirements);
     this.keys = domainKeys.reduce((keys, domain) => {
       keys[domain] = domain;
       return keys;
+    }, {});
+    this.typeGuards = domainKeys.reduce((guards, domain) => {
+      const usecaseConstructors = requirements[domain];
+      const usecaseKeys = Object.keys(usecaseConstructors);
+      guards[domain] = usecaseKeys.reduce((usecaseGuards, usecase) => {
+        const scenarioConstructor = usecaseConstructors[usecase];
+        usecaseGuards[usecase] = (scenario) => {
+          return scenario instanceof scenarioConstructor && scenario.domain === domain && scenario.usecase === usecase;
+        };
+        return usecaseGuards;
+      }, {});
+      return guards;
     }, {});
     return new Proxy(this, {
       get(target, prop, receiver) {
