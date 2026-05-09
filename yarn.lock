@@ -164,7 +164,7 @@ __metadata:
     typescript: "npm:^4.6.2"
     vite: "npm:^2.8.6"
   peerDependencies:
-    "@robustive/robustive-ts": ^1.1.0
+    "@robustive/robustive-ts": ^1.1.4
     express: ^5.2.1
   languageName: unknown
   linkType: soft
