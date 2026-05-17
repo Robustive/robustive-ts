@@ -55,6 +55,9 @@ class Scenario {
   just(next) {
     return Promise.resolve(next);
   }
+  withDirective(next, directive) {
+    return Promise.resolve({ ...next, directive });
+  }
   authorize(actor, domain, usecase) {
     if (this.delegate !== void 0 && this.delegate.authorize !== void 0) {
       return this.delegate.authorize(actor, domain, usecase);
@@ -114,12 +117,12 @@ class UsecaseImple {
       return nextScene;
     });
   }
-  interactedBy(actor) {
+  interactedBy(actor, recursiveWrapper) {
     const startAt = new Date();
     const InteractResult = new InteractResultFactory();
     const recursive = (scenario2) => {
       const lastScene = scenario2.slice(-1)[0];
-      if (lastScene.course === "goals") {
+      if (lastScene.course === "goals" || lastScene.directive) {
         return Promise.resolve(scenario2);
       }
       return this._scenario.next(lastScene, actor).then((nextScene) => {
@@ -133,7 +136,7 @@ class UsecaseImple {
       return Promise.reject(err);
     }
     const scenario = [this.currentContext];
-    return recursive(scenario).then((performedScenario) => {
+    const execRecursion = () => recursive(scenario).then((performedScenario) => {
       const endAt = new Date();
       const elapsedTimeMs = endAt.getTime() - startAt.getTime();
       const lastSceneContext = performedScenario.slice(-1)[0];
@@ -174,6 +177,11 @@ class UsecaseImple {
       }
       return result;
     });
+    if (recursiveWrapper) {
+      return recursiveWrapper(execRecursion);
+    } else {
+      return execRecursion();
+    }
   }
 }
 const ScenarioFactory = class ScenarioFactory2 {
