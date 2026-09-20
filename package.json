@@ -1,19 +1,49 @@
 {
-  "name": "robustive-ts-monorepo",
-  "private": true,
-  "workspaces": [
-    "packages/*"
+  "name": "@robustive/robustive-ts",
+  "version": "1.1.5",
+  "description": "Reactive and OBjective USecase Transactor for TypeScript.",
+  "main": "./dist/robustive.umd.js",
+  "module": "./dist/robustive.es.js",
+  "types": "./types/index.d.ts",
+  "files": [
+    "/dist",
+    "/types"
   ],
-  "scripts": {
-    "build": "yarn workspaces foreach --all -t run build",
-    "build:clean": "yarn workspaces foreach --all -p run build:clean",
-    "test": "yarn workspaces run test"
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./types/index.d.ts",
+        "default": "./dist/robustive.es.js"
+      },
+      "require": {
+        "types": "./types/index.d.ts",
+        "default": "./dist/robustive.umd.js"
+      }
+    }
   },
+  "scripts": {
+    "build:clean": "shx rm -rf ./dist ./types",
+    "build": "tsc && vite build",
+    "lint": "eslint \"src/**/*.ts\"",
+    "prepare": "yarn build"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Robustive/Robustive-ts"
+  },
+  "author": "Yusuke SAITO <yusuke.saito@jibunstyle.com>",
+  "license": "Apache-2.0",
   "devDependencies": {
+    "@types/node": "^20.11.26",
     "@typescript-eslint/eslint-plugin": "^5.15.0",
     "@typescript-eslint/parser": "^5.15.0",
     "eslint": "^8.11.0",
-    "typescript": "^5.9.3"
+    "shx": "^0.3.4",
+    "typescript": "^4.6.2",
+    "vite": "^2.8.6"
   },
   "packageManager": "yarn@4.12.0"
 }
