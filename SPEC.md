@@ -45,7 +45,7 @@
 - 対応環境: ESM（`dist/robustive.es.js`）と UMD（`dist/robustive.umd.js`）の両方を配布。型定義は `types/index.d.ts`。
 - ビルドターゲット: `esnext` / `module: esnext` / `strict: true`。
 - ランタイム依存: なし。`crypto.getRandomValues` のみ前提（ID 生成）。
-- 配布: GitHub Packages（`@robustive` scope、`npmAlwaysAuth`）。
+- 配布: GitHub Packages（`@robustive` scope、`npmAlwaysAuth`）。npm レジストリへ移行する方針（→ T-6）。移行後もタグ駆動の公開フロー自体は変えない。
 
 ## 3. 設計
 
@@ -142,6 +142,7 @@ DomainRequirements（利用側が宣言）
 - 決定: `v*` タグの push で `publish.yml` が `yarn build` → `yarn npm publish` を実行する。Corepack で yarn 4.12.0 を固定する。
 - 理由: `setup-node` のキャッシュ処理が Corepack 初期化前に Yarn へ触れて失敗した経緯があり（コミット `1f25188`）、`package-manager-cache: false` + 明示的な `corepack prepare` に倒した。
 - 注意: publish はタグ push が引き金。バージョン更新とタグ付けは指示なく行わない。
+- 変更予定: 公開先を GitHub Packages から npm レジストリへ移す（→ T-6）。タグ駆動・Corepack 固定という骨格は維持し、レジストリと認証情報だけを差し替える。移行で決めるべき論点は 5. 未決事項にある。
 
 ### D-7: 再帰の終了条件は goals 到達または truthy な directive
 
@@ -157,3 +158,5 @@ DomainRequirements（利用側が宣言）
 - [ ] `dist/` / `types/` のコミットを継続するか → D-3 / T-4
 - [ ] `Scenario#authorize` が delegate 未実装時に throw する一方、`UsecaseImple` 側は存在チェックで素通りする。この非対称が意図的かどうか
 - [ ] 現行の `IScenarioDelegate` 方式（旧 `BaseScenario` 継承方式からの変更）を README にどう記述するか → T-2
+- [ ] npm 移行後のパッケージ名。`@robustive/robustive-ts` のまま npm 上のスコープを取得するか、スコープ無しの `robustive-ts` にするか（README が案内している旧名）→ T-6
+- [ ] 移行後、GitHub Packages 版を非推奨にするか、当面は並行公開するか → T-6
