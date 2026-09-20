@@ -39,9 +39,9 @@ v1.1.5 公開済みの実装に対して、検証・文書・構成の穴を塞�
   - [x] T-4.2 `.gitignore` に `/dist` `/types` を追加し、`git rm --cached` で追跡解除。D-3 を改訂
   - [x] T-4.3 調査中に判明した publish 事故リスクへの対処: Yarn 4 は `yarn install` でも `yarn pack` でも `prepare` を実行しないため、生成物を追跡しないと**中身の無いパッケージを公開しうる**。`package.json` に `prepack` を追加して pack/publish 直前のビルドを保証（`publish.yml` は元から `yarn build` を明示していたため変更不要）
   - [x] T-4.4 CLAUDE.md の記述を修正。旧記述「`prepare` により `yarn install` がビルドを巻き込む」は実測と異なっていた
-- [ ] **T-5** TypeScript を 5 系へ更新する → SPEC D-9
-  - [ ] T-5.1 単独の変更として上げる。生成物は追跡外になったため（→ SPEC D-3）、更新前後で `yarn build` の出力を手元に退避して比較し、差分がコンパイラ更新由来だけであることを確認する
-  - [ ] T-5.2 eslint 8 / @typescript-eslint 5 が追随できるか確認する（必要なら flat config 移行と併せて）
+- [x] **T-5** TypeScript を 5 系へ更新する → SPEC D-9
+  - [x] T-5.1 `^4.6.2` → `^5.9.3`（実解決 4.9.5 → 5.9.3）。更新前の出力を退避して比較し、`dist/` は完全一致、`.d.ts` の差分は型エイリアスの保持のみで意味は不変と確認 → SPEC D-9
+  - [x] T-5.2 eslint 8 / @typescript-eslint 5 のままで警告なく通ると確認。`parserOptions.project` 未使用のためバージョン警告も出ず、flat config 移行は不要だった
 - [~] **T-6** パッケージの公開先を GitHub Packages から npm へ移行する → SPEC 2.2, D-6
   - [x] T-6.1 パッケージ名は `@robustive/robustive-ts` のまま、npm 上で `@robustive` スコープを取得する方針に決定（2026-09-20）→ SPEC D-6
   - [x] T-6.2 GitHub Packages 版は廃止。並行公開しないと決定（2026-09-20）→ SPEC D-6
@@ -66,4 +66,4 @@ T-1〜T-6 の決着後に定義する。
 
 - `.yarn/install-state.gz` が untracked のまま残っている。`.gitignore` に `.yarn/install-state.gz` を足すのが Yarn 4 の定石。
 - `.eslintrc.js` は `env.browser` のみ。`crypto.getRandomValues` を使う一方で Node 実行も想定するなら `env` の見直しが要る → SPEC 2.2
-- eslint 8 系 + `.eslintrc.js`（旧形式）のまま。flat config への移行はいずれ必要になる。
+- eslint 8 系 + `.eslintrc.js`（旧形式）のまま。TypeScript 5.9 では支障が無いと確認済み（→ T-5.2）だが、flat config への移行はいずれ必要になる。
