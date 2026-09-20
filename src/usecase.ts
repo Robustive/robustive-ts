@@ -46,9 +46,9 @@ export type Context<Z extends Scenes, Directive = null> = {
 
 export type ContextOf<Z extends Scenes, C extends Courses, Directive = null> = {
     readonly [S in keyof Z[C]]:
-        Z[C][S] extends Empty
-            ? { scene: S; course: C; directive?: Directive }
-            : { scene: S; course: C; directive?: Directive } & Z[C][S]
+    Z[C][S] extends Empty
+        ? { scene: S; course: C; directive?: Directive }
+        : { scene: S; course: C; directive?: Directive } & Z[C][S]
 }[keyof Z[C]];
 
 type SceneFactory<Z extends Scenes, C extends Courses> = Z[C] extends Empty
@@ -108,19 +108,19 @@ type UsecaseKeys<R extends DomainRequirements, D extends keyof R> = {
 };
 
 export type InferScenes<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> = {
-  [U in keyof R[D]]: R[D][U] extends {
-    new (domain: string, usecase: string, id: string): Scenario<infer Z extends Scenes, NOCARE>
-  }
-    ? Z
-    : never
+    [U in keyof R[D]]: R[D][U] extends {
+        new (domain: string, usecase: string, id: string): Scenario<infer Z extends Scenes, NOCARE>
+    }
+        ? Z
+        : never
 }[U];
 
 export type InferDirective<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> = {
-  [U in keyof R[D]]: R[D][U] extends {
-    new (domain: string, usecase: string, id: string): Scenario<NOCARE, infer Directive>
-  }
-    ? Directive
-    : never
+    [U in keyof R[D]]: R[D][U] extends {
+        new (domain: string, usecase: string, id: string): Scenario<NOCARE, infer Directive>
+    }
+        ? Directive
+        : never
 }[U];
 
 type SceneFactoryAdapter<R extends DomainRequirements, D extends keyof R, U extends keyof R[D], C extends Courses> = InferScenes<R, D, U>[C] extends Empty
@@ -404,7 +404,7 @@ type UsecaseContext<R extends DomainRequirements, D extends keyof R, U extends k
     "name" : U; // The property name is name instead of usecase because it is assumed that it will be used as usecase.name when used.
     "course": Courses;
     "scene": string;
-}
+};
 
 export type Usecase<R extends DomainRequirements, D extends keyof R, U extends keyof R[D]> = UsecaseContext<R, D, U> & UsecaseImple<R, D, U>;
 

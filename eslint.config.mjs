@@ -1,4 +1,5 @@
 import js from "@eslint/js";
+import stylistic from "@stylistic/eslint-plugin";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
@@ -17,11 +18,13 @@ export default tseslint.config(
             // テストと設定ファイルは Node 側（→ docs/SPEC.md D-13）
             , globals: { ...globals.browser, ...globals.node }
         }
+        , plugins: { "@stylistic": stylistic }
+        // フォーマット系は eslint 本体から @stylistic へ移してある（→ docs/SPEC.md D-14）
         , rules: {
-            indent: ["error", 4]
-            , "linebreak-style": ["error", "unix"]
-            , quotes: ["error", "double"]
-            , semi: ["error", "always"]
+            "@stylistic/indent": ["error", 4, { SwitchCase: 0 }]
+            , "@stylistic/linebreak-style": ["error", "unix"]
+            , "@stylistic/quotes": ["error", "double"]
+            , "@stylistic/semi": ["error", "always"]
         }
     }
 );

@@ -197,10 +197,21 @@ DomainRequirements（利用側が宣言）
 - 併せて変更: グローバル定義を browser のみから browser + node の両方にする。このライブラリはブラウザ・Node 双方で動く前提（→ 1.2）で、テストと設定ファイルは Node で動くため、browser だけという旧 `env` は実態と合っていなかった。
 - 却下した案:
   - eslint 8.57 のまま flat config を使う — 過渡的で、結局 9 へ上げる必要がある。
-  - フォーマット系ルール（`indent` / `quotes` / `semi` / `linebreak-style`）を `@stylistic` へ移す — eslint 本体では非推奨扱いだが、移すかどうかは設定形式の移行とは別の判断。今回は同じルールを維持する（→ TASK-TREE T-8 の残件）。
+  - フォーマット系ルールの `@stylistic` への移設を同時にやる — 設定形式の移行と混ざると、検出の変化がどちらに由来するか切り分けられない。別の変更として実施した（→ D-14）。
 - 設定ファイルは `eslint.config.mjs`。`.js` のままだと ESM 構文を Node が再パースして警告を出すが、`package.json` に `"type": "module"` を足す手は採れない（`vite.config.js` が `__dirname` を使う CJS のため壊れる）。
 - 検証: 移行の前後で、意図的に違反を含むファイルに対して同一の8件（同じ行・同じルール）が検出されることを確認した。severity は変わり、`no-unused-vars` と `no-explicit-any` が warning から error になった（typescript-eslint v8 の recommended の既定）。既存コードに違反は無いのでそのまま受け入れた。
 - 副作用: v8 の `no-unused-vars` が `const courses = [...] as const` を「型としてしか使われていない値」と指摘したため、`Courses` を union 型の直書きに変えた。ビルド後の JS は完全一致で、`.d.ts` からは内部用の `declare const courses` が消えただけ。
+
+### D-14: フォーマット系ルールは @stylistic に置く
+
+- 日付: 2026-09-20
+- 決定: `indent` / `linebreak-style` / `quotes` / `semi` を eslint 本体のルールから `@stylistic/*` へ移す。設定値（4スペース / LF / ダブルクォート / セミコロン必須）は変えない。
+- 理由: eslint 本体はフォーマット系ルールを非推奨とし、v10 で削除する方針。移しておかないと次のメジャー更新で規約が効かなくなる。
+- 挙動の差と対処: `@stylistic` のルールは TypeScript 構文を理解するので、本体のルールが見ていなかった箇所まで検査する。移行直後、既存コードに60件の違反が出た。内訳は3種類:
+  - `switch` の `case` のインデント — `@stylistic/indent` は `SwitchCase` の既定が本体と異なる。`case` を `switch` と同列に置く既存スタイルは規約として維持したいので、`{ SwitchCase: 0 }` を明示した。
+  - 型宣言のセミコロン漏れ（`type AssociatedValues = object` など9件）— 本体の `semi` は型エイリアスを見ないため見逃されていた。書き漏れなので補った。
+  - `InferScenes` / `InferDirective` が2スペースで書かれていた — 元から `indent: 4` に反していたが、本体の `indent` は型ノードを見ないため検出されなかった。4スペースへ揃えた。
+- 検証: 4ルールすべてを踏む違反ファイルで、移行前後の検出が行・列・メッセージまで一致し、ルール名に `@stylistic/` が付いただけであることを確認した。既存コードの整形を直した後も、ビルド後の JS と `.d.ts` は完全一致（差分は行番号を持つ `.map` のみ）。
 
 ## 5. 未決事項
 

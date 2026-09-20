@@ -64,7 +64,10 @@ v1.1.5 公開済みの実装に対して、検証・文書・構成の穴を塞�
   - [x] T-8.2 `eslint.config.mjs` を作成し `.eslintrc.js` を削除。globals を browser + node に。`lint` script は `eslint .`（除外は config の `ignores` が持つ）
   - [x] T-8.3 移行前後で同一の8件が検出されることを確認。severity は warning → error に変化（v8 recommended の既定）
   - [x] T-8.4 v8 が指摘した `const courses` を `Courses` の union 直書きに変更。ビルド後の JS は完全一致 → SPEC D-13
-  - [ ] T-8.5 残件: フォーマット系ルール（`indent` / `quotes` / `semi` / `linebreak-style`）を `@stylistic` へ移すかは別途判断（eslint 本体では非推奨、10 で削除予定）→ SPEC D-13
+  - [x] T-8.5 フォーマット系ルールを `@stylistic` へ移設（2026-09-20）→ SPEC D-14
+    - [x] `@stylistic/eslint-plugin` を追加し、4ルールを `@stylistic/*` に置換。検出が行・列・メッセージまで一致することを確認
+    - [x] `SwitchCase: 0` を明示して、`case` を `switch` と同列に置く既存スタイルを維持
+    - [x] `@stylistic` が新たに検出した既存コードの逸脱（型宣言のセミコロン漏れ9件、2スペースで書かれていた `InferScenes` / `InferDirective`）を整形。ビルド後の JS と `.d.ts` は完全一致
 
 ## マイルストーン 2: TBD
 
