@@ -72,6 +72,5 @@ T-1〜T-6 の決着後に定義する。
 作業中に見つかった、今やらないが忘れたくないこと。溜まったら `docs/SPEC.md` の未決事項か正式なタスクに昇格させる。
 
 - `README.md` と `test/readme.test-d.ts` は同じコード例を二重に持っている。型が通ることは保証されるが、内容の同期は人力。README からコードブロックを抽出して検査する形にできれば、二重管理をやめられる。
-- `.yarn/install-state.gz` が untracked のまま残っている。`.gitignore` に `.yarn/install-state.gz` を足すのが Yarn 4 の定石。
 - `.eslintrc.js` は `env.browser` のみ。`crypto.getRandomValues` を使う一方で Node 実行も想定するなら `env` の見直しが要る → SPEC 2.2
 - eslint 8 系 + `.eslintrc.js`（旧形式）のまま。TypeScript 5.9 では支障が無いと確認済み（→ T-5.2）だが、flat config への移行はいずれ必要になる。
