@@ -79,7 +79,7 @@ DomainRequirements（利用側が宣言）
 | メソッド | 実装義務 | 役割 |
 |---|---|---|
 | `next` | 必須 | 現シーンから次シーンへの分岐。未実装なら `Scenario#next` が reject する |
-| `authorize` | 任意 | アクターの実行可否。未実装だと `Scenario#authorize` は throw するが、`UsecaseImple` 側は `this._scenario.authorize` の存在チェックで呼ぶため既定では認可なしで通る |
+| `authorize` | **事実上必須** | アクターの実行可否。`UsecaseImple` は `Scenario#authorize`（クラスのメソッドなので常に存在する）の有無だけを見て必ず呼ぶため、delegate 側が未実装だと `Scenario#authorize` が throw する。しかも `interactedBy` / `progress` の中で同期的に投げるので、Promise の reject にもならない（→ 5. 未決事項） |
 | `complete` | 任意 | 正常・異常いずれの終了時にも呼ばれる後処理 |
 
 ## 4. 決定記録
@@ -183,5 +183,6 @@ DomainRequirements（利用側が宣言）
 
 決まっていないことを明示する。ここにある項目は実装してはいけない。
 
-- [ ] `Scenario#authorize` が delegate 未実装時に throw する一方、`UsecaseImple` 側は存在チェックで素通りする。この非対称が意図的かどうか
+- [ ] `delegate.authorize` が事実上必須になっている点（→ 3.3）。README は「optional」と書いているが、未実装だと `interactedBy` が同期例外で落ちる。テストでは現状の挙動をそのまま固定してある（`test/usecase.test.ts`）。仕様として認めるのか、未実装なら認可なしで通す実装に直すのかを決める
+  - 当初この節には「`UsecaseImple` 側は存在チェックで素通りする」と書いていたが、テストで否定された。`this._scenario.authorize` は常に truthy なので素通りは起きない
 - [ ] 現行の `IScenarioDelegate` 方式（旧 `BaseScenario` 継承方式からの変更）を README にどう記述するか → T-2

@@ -27,16 +27,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 yarn install --immutable       # 依存の導入
 yarn build                     # tsc（types/）→ vite（dist/）
 yarn build:clean               # dist/ types/ の削除
-yarn lint                      # eslint "src/**/*.ts"
+yarn lint                      # eslint（src / test / vitest.config.ts）
+yarn test                      # vitest run --typecheck（ランタイム + 型テスト）
+yarn test:watch                # 同上の watch
 yarn pack --dry-run            # 公開パッケージに何が入るかの確認
 ```
 
-テストは未整備。`test` script は存在しないので `yarn test` は失敗する。テストを足すまで「テストが通った」とは言わないこと（→ TASK-TREE T-1）。
+単体で走らせるとき: `yarn vitest run test/enum.test.ts`、名前で絞るなら `yarn vitest run -t "directive"`。型テストだけなら `yarn vitest run --typecheck --typecheck.only`。
 
-作業完了を報告する前に、少なくとも lint と `yarn build` を通すこと。
+作業完了を報告する前に、少なくとも `yarn lint`、`yarn test`、`yarn build` を通すこと。
 
 ## このプロジェクト固有の注意
 
+- テストは `test/` に置く。`*.test.ts` がランタイム、`*.test-d.ts` が型テスト（`expectTypeOf`）で、どちらも `yarn test` が走らせる（→ docs/SPEC.md D-10）。型が API 契約を担うライブラリなので、振る舞いを変えたら型テストも対で直す。
+- `tsconfig.json` は `include: ["src"]` でビルド専用。テストの型検査は `tsconfig.test.json` が担う。`test/` を足すために `rootDir` をルートへ広げてあるが、`noEmit` なので生成物には影響しない。
 - `dist/` と `types/` は生成物で、**git 管理外**（→ docs/SPEC.md D-3）。clone 直後は存在しない。`yarn install` では作られないので、必要なら `yarn build` を明示的に走らせる。
 - ビルドは2段。`tsc` は `emitDeclarationOnly` で `types/` に `.d.ts` のみを吐き、JS は `vite build` が `dist/` に es/umd を吐く。型だけ直したいときも両方走らせる。
 - 公開 API の実体は `new Proxy` で、クラス本体にはプロパティが無い。`Robustive` / `UsecaseSelector` / `ScenarioFactory` / `SceneFactory` / `ContextFactory` / `SwiftEnum` はいずれも `as new <...>() => 型` のキャストで型を与えている。**型注釈が API 契約そのもの**なので、挙動を変えるときは Proxy の `get` とキャスト側の型の両方を必ず対で直す。片方だけ直すと型は通るのに実行時に落ちる。

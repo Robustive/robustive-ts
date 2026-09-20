@@ -24,7 +24,9 @@
   "scripts": {
     "build:clean": "shx rm -rf ./dist ./types",
     "build": "tsc && vite build",
-    "lint": "eslint \"src/**/*.ts\"",
+    "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\" vitest.config.ts",
+    "test": "vitest run --typecheck",
+    "test:watch": "vitest --typecheck",
     "prepack": "yarn build",
     "prepare": "yarn build"
   },
@@ -44,7 +46,8 @@
     "eslint": "^8.11.0",
     "shx": "^0.3.4",
     "typescript": "^5.9.3",
-    "vite": "^7"
+    "vite": "^7",
+    "vitest": "^5.0.1"
   },
   "packageManager": "yarn@4.12.0"
 }

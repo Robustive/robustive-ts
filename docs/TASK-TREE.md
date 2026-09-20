@@ -13,22 +13,24 @@
 
 ## 現在のフォーカス
 
-**T-1** — テスト基盤の整備
+**T-2** — README を現行 API に追従させる（T-2.4 は T-7 の決定待ち）
 
 ## マイルストーン 1: 土台の立て直し
 
 v1.1.5 公開済みの実装に対して、検証・文書・構成の穴を塞ぐ。
 
-- [ ] **T-1** テスト基盤を整備する → SPEC 5（未決）
-  - [ ] T-1.1 テスト方式を決める（ランタイムテストのランナー、型テストの書き方）→ 決まったら SPEC 4 に決定記録を足す
-  - [ ] T-1.2 `package.json` に `test` script を足す（現在は未定義で `yarn test` は失敗する）
-  - [ ] T-1.3 `Context` の平坦化と網羅性（`Flatten` / `PreFlatten`、`alternatives: Empty` のケース）の型テスト → SPEC 3.2
-  - [ ] T-1.4 `interactedBy` の終了条件（goals 到達 / directive 中断 / 認可拒否 / 例外時の failure）のランタイムテスト → SPEC D-7, R-3, R-5
-  - [ ] T-1.5 `SwiftEnum` と `typeGuards` のテスト → SPEC R-7, R-8
+- [x] **T-1** テスト基盤を整備する → SPEC D-10, D-11
+  - [x] T-1.1 Vitest に決定（ランタイムと型テストを1ツールで）。前提として vite 7 / @types/node 22 へ更新 → SPEC D-10, D-11
+  - [x] T-1.2 `test` / `test:watch` script を追加。`lint` も `test/` と `vitest.config.ts` を対象に含めた
+  - [x] T-1.3 `Context` の平坦化の型テスト（`test/context.test-d.ts`、14件）→ SPEC 3.2
+  - [x] T-1.4 `interactedBy` のランタイムテスト（`test/usecase.test.ts`、13件）→ SPEC D-7, R-3, R-5
+  - [x] T-1.5 `SwiftEnum`（`test/enum.test.ts`、6件）と `Robustive` / `typeGuards`（`test/robustive.test.ts`、9件）→ SPEC R-7, R-8
+  - [x] T-1.6 設定の分離: `tsconfig.json` を `include: ["src"]` でビルド専用にし、型検査用に `tsconfig.test.json` を追加
 - [ ] **T-2** README を現行 API に追従させる → SPEC 3.3
   - [ ] T-2.1 存在しない `BaseScenario` / `MutableContext` の記述を `Scenario` / `IScenarioDelegate` / `Context` に置き換える
   - [ ] T-2.2 未記載の機能を追記する: `Directive`（→ D-7）、`Robustive#typeGuards`（→ R-7）、`SwiftEnum`（→ R-8）、`interactedBy` の recursiveWrapper（→ R-10）
   - [x] T-2.3 インストール手順と import パスを `@robustive/robustive-ts` に修正（T-6.6 で実施）→ SPEC 2.2
+  - [ ] T-2.4 `authorize` を optional と書いている表を直す。実態は事実上必須（→ T-7 の決定待ち）
 - [x] **T-3** モノレポを畳み、単一パッケージ構成にする → SPEC D-8, D-9
   - [x] T-3.1 構成を決定（2026-09-20）。当初「モノレポ維持」としたが利用者判断で単一パッケージ化に改訂 → SPEC D-8
   - [x] T-3.2 `packages/express/`（node_modules のみ、git 管理外）を削除
@@ -52,6 +54,9 @@ v1.1.5 公開済みの実装に対して、検証・文書・構成の穴を塞�
   - [x] T-6.7 CLAUDE.md から `GITHUB_TOKEN` 前提の記述を削除し、公開先と CI 認証の記述を更新
   - [!] T-6.8 npm 側の受け入れ準備 — **リポジトリ外の作業のため未完**: npm で `@robustive` org（スコープ）を作成し、publish 権限を持つ Automation トークンを発行して、GitHub リポジトリに `NPM_TOKEN` シークレットとして登録する。これが済むまでタグを push しても publish は失敗する
 
+- [ ] **T-7** `delegate.authorize` が事実上必須になっている件を決着させる → SPEC 3.3, 5（未決）
+  - [ ] T-7.1 仕様として認める（README と SPEC を「必須」に統一）か、未実装なら認可なしで通す実装に直すかを決める。T-1 のテストで、未実装時に `interactedBy` が同期例外で落ちることを確認済み
+  - [ ] T-7.2 決定に沿って実装かドキュメントを直し、`test/usecase.test.ts` の該当テストを追従させる（現状は「現状の挙動のピン留め」として書いてある）
 ## マイルストーン 2: TBD
 
 T-1〜T-6 の決着後に定義する。

@@ -1,0 +1,16 @@
+{
+  // 型テスト用。src に加えて test/ も型検査の対象にし、出力は一切行わない。
+  // vitest --typecheck がこの設定で tsc を呼ぶ（→ docs/SPEC.md D-10）
+  //
+  // declaration 系は tsconfig.json から継承したままにする（false にすると、継承した
+  // declarationDir が「declaration なしでは指定できない」と弾かれるため）。
+  // 継承した rootDir は ./src なので、test/ を含められるようルートへ広げる。出力は
+  // noEmit で止めるため、広げても生成物には影響しない。
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "emitDeclarationOnly": false,
+    "rootDir": "."
+  },
+  "include": ["src", "test"]
+}

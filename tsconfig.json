@@ -97,5 +97,7 @@
     /* Completeness */
     // "skipDefaultLibCheck": true,                      /* Skip type checking .d.ts files that are included with TypeScript. */
     "skipLibCheck": true                                 /* Skip type checking all .d.ts files. */
-  }
+  },
+  // ビルド対象は src のみ。テストは tsconfig.test.json が見る（→ docs/SPEC.md D-10）
+  "include": ["src"]
 }
