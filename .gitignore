@@ -1,3 +1,7 @@
 .DS_Store
 node_modules
 yarn-error.log
+
+# ビルド生成物（→ docs/SPEC.md D-3）。publish 直前に prepack が生成する
+/dist
+/types

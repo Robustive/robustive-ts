@@ -34,11 +34,13 @@ v1.1.5 公開済みの実装に対して、検証・文書・構成の穴を塞�
   - [x] T-3.2 `packages/express/`（node_modules のみ、git 管理外）を削除
   - [x] T-3.3 `packages/core/*` をルートへ昇格し、`workspaces` を廃止。`package.json` を統合（`lint` script を新設、TypeScript は ^4.6.2 に統一 → SPEC D-9）、`publish.yml` の `foreach` を `yarn build` / `yarn npm publish` に置換
   - [x] T-3.4 検証: 再ビルドで `dist/` `types/` に差分なし、lint 通過、`yarn pack --dry-run` の同梱物が移動前と同等
-- [ ] **T-4** `dist/` `types/` のコミット運用を見直す → SPEC D-3
-  - [ ] T-4.1 コミット済み生成物に依存している利用者・手順がないか確認する（publish.yml は自前で build しており非依存）
-  - [ ] T-4.2 追跡から外すなら `.gitignore` と `.github/workflows/publish.yml` を対で更新し、D-3 を改訂する
+- [x] **T-4** `dist/` `types/` を追跡から外す → SPEC D-3
+  - [x] T-4.1 依存経路を調査。`publish.yml` は自前で build しており非依存、README も `github:` 依存や tarball 利用を案内していない。78コミット中53件が生成物を含むが生成物のみのコミットはゼロ、`.git` は 3.1MB で肥大も軽微 — 実害より「npm 移行で参照経路が消えた」ことが決め手 → SPEC D-3
+  - [x] T-4.2 `.gitignore` に `/dist` `/types` を追加し、`git rm --cached` で追跡解除。D-3 を改訂
+  - [x] T-4.3 調査中に判明した publish 事故リスクへの対処: Yarn 4 は `yarn install` でも `yarn pack` でも `prepare` を実行しないため、生成物を追跡しないと**中身の無いパッケージを公開しうる**。`package.json` に `prepack` を追加して pack/publish 直前のビルドを保証（`publish.yml` は元から `yarn build` を明示していたため変更不要）
+  - [x] T-4.4 CLAUDE.md の記述を修正。旧記述「`prepare` により `yarn install` がビルドを巻き込む」は実測と異なっていた
 - [ ] **T-5** TypeScript を 5 系へ更新する → SPEC D-9
-  - [ ] T-5.1 単独の変更として上げ、`dist/` `types/` の差分がコンパイラ更新由来だけになることを確認する
+  - [ ] T-5.1 単独の変更として上げる。生成物は追跡外になったため（→ SPEC D-3）、更新前後で `yarn build` の出力を手元に退避して比較し、差分がコンパイラ更新由来だけであることを確認する
   - [ ] T-5.2 eslint 8 / @typescript-eslint 5 が追随できるか確認する（必要なら flat config 移行と併せて）
 - [~] **T-6** パッケージの公開先を GitHub Packages から npm へ移行する → SPEC 2.2, D-6
   - [x] T-6.1 パッケージ名は `@robustive/robustive-ts` のまま、npm 上で `@robustive` スコープを取得する方針に決定（2026-09-20）→ SPEC D-6

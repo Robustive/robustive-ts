@@ -25,6 +25,7 @@
     "build:clean": "shx rm -rf ./dist ./types",
     "build": "tsc && vite build",
     "lint": "eslint \"src/**/*.ts\"",
+    "prepack": "yarn build",
     "prepare": "yarn build"
   },
   "publishConfig": {
