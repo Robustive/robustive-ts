@@ -9,7 +9,7 @@ Robustive framework is a framework for (1) expressing the use-case scenario show
 ## Install
 
 ```shell
-$ yarn add robustive-ts
+$ yarn add @robustive/robustive-ts
 ```
 
 ## How to use
@@ -48,7 +48,7 @@ const SignIn = {
 Define contexts of behaviors like below.
 
 ```typescript
-import type { Empty } from "robustive-ts";
+import type { Empty } from "@robustive/robustive-ts";
 
 /**
  *  This must be extends Scenes. 
@@ -84,7 +84,7 @@ If the scene behavior is a process performed by the system, define it as a priva
 The return value should be a Promise that returns the Context of the next scene.
 
 ```typescript
-import { BaseScenario, Context } from "robustive-ts";
+import { BaseScenario, Context } from "@robustive/robustive-ts";
 
 class SignInScenario extends BaseScenario<SignInScenes> {
 
@@ -131,7 +131,7 @@ class SignInScenario extends BaseScenario<SignInScenes> {
 In the end, describe domains and usecases and declare requirements like this.
 
 ```typescript
-import { Robustive } from "robustive-ts";
+import { Robustive } from "@robustive/robustive-ts";
 
 /**
  *  This must be implement DomainRequirements.
@@ -170,7 +170,7 @@ complete  | method    | optional    | a termination process when the usecase end
 Describe application behaviors.
 
 ```typescript
-import { Usecase } from "robustive-ts";
+import { Usecase } from "@robustive/robustive-ts";
 
 const signIn = (usecase: Usecase<Requirements, "authentication", "signIp">, actor: Actor): Promise<void> => {
     return usecase

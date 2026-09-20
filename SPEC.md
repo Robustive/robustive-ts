@@ -45,7 +45,7 @@
 - 対応環境: ESM（`dist/robustive.es.js`）と UMD（`dist/robustive.umd.js`）の両方を配布。型定義は `types/index.d.ts`。
 - ビルドターゲット: `esnext` / `module: esnext` / `strict: true`。
 - ランタイム依存: なし。`crypto.getRandomValues` のみ前提（ID 生成）。
-- 配布: GitHub Packages（`@robustive` scope、`npmAlwaysAuth`）。npm レジストリへ移行する方針（→ T-6）。移行後もタグ駆動の公開フロー自体は変えない。
+- 配布: npm レジストリ（`@robustive/robustive-ts`）。認証なしで install できる（→ D-6）。
 
 ## 3. 設計
 
@@ -137,12 +137,20 @@ DomainRequirements（利用側が宣言）
 - 決定: `SwiftEnum` のユーティリティは `(swiftEnumCase) => U` のファクトリ関数で与え、enum 値は明示的な self 引数として渡す。
 - 理由: 生成されるケースは `Object.freeze` されるため、`this` 束縛に依存するクラスメソッドでは扱いにくい。関数なら値と振る舞いの結合が明示的になる。
 
-### D-6: 公開はタグ駆動で GitHub Packages へ
+### D-6: 公開はタグ駆動、公開先は npm レジストリ
 
-- 決定: `v*` タグの push で `publish.yml` が `yarn build` → `yarn npm publish` を実行する。Corepack で yarn 4.12.0 を固定する。
-- 理由: `setup-node` のキャッシュ処理が Corepack 初期化前に Yarn へ触れて失敗した経緯があり（コミット `1f25188`）、`package-manager-cache: false` + 明示的な `corepack prepare` に倒した。
+- 日付: 2026-09-20（公開先の決定）。タグ駆動の仕組み自体はそれ以前から。
+- 決定: `v*` タグの push で `publish.yml` が `yarn build` → `yarn npm publish` を実行する。Corepack で yarn 4.12.0 を固定する。公開先は npm レジストリで、パッケージ名は `@robustive/robustive-ts`（npm 上で `@robustive` スコープを取得して使う）。GitHub Packages への公開は廃止し、並行公開はしない。
+- 理由:
+  - npm を選ぶ理由: GitHub Packages は利用者側にも `.npmrc` と個人アクセストークンの設定を強いる。公開ライブラリの導入障壁として重い。
+  - スコープ名を変えない理由: v1.1.5 まで `@robustive/robustive-ts` として公開済みで、名前を変えると利用者の import 文まで書き換えさせることになる。npm でスコープを取得すれば同じ名前で継続できる。
+  - Corepack を明示的に叩く理由: `setup-node` のキャッシュ処理が Corepack 初期化前に Yarn へ触れて失敗した経緯があり（コミット `1f25188`）、`package-manager-cache: false` + 明示的な `corepack prepare` に倒した。
+- 却下した案:
+  - スコープ無しの `robustive-ts`（README が案内していた旧名）— 名前が変わると既存利用者に移行コストが生じる。
+  - npm と GitHub Packages の並行公開 — 二重メンテになり、どちらが正なのかが利用者にも開発側にも曖昧になる。
+- レジストリ指定: `.yarnrc.yml` で `npmRegistryServer` と `npmPublishRegistry` を `https://registry.npmjs.org` に明示する。Yarn 4 の既定は `registry.yarnpkg.com`（npm のミラー）で、指定しないと publish までそのミラー宛になる。
+- 認証: Yarn 4 は npm の `.npmrc` を読まないため、`setup-node` の `registry-url` では認証できない。CI は `YARN_NPM_AUTH_TOKEN` 環境変数に `NPM_TOKEN` シークレットを渡す。リポジトリ内の `.yarnrc.yml` にトークンを書かない。
 - 注意: publish はタグ push が引き金。バージョン更新とタグ付けは指示なく行わない。
-- 変更予定: 公開先を GitHub Packages から npm レジストリへ移す（→ T-6）。タグ駆動・Corepack 固定という骨格は維持し、レジストリと認証情報だけを差し替える。移行で決めるべき論点は 5. 未決事項にある。
 
 ### D-7: 再帰の終了条件は goals 到達または truthy な directive
 
@@ -158,5 +166,3 @@ DomainRequirements（利用側が宣言）
 - [ ] `dist/` / `types/` のコミットを継続するか → D-3 / T-4
 - [ ] `Scenario#authorize` が delegate 未実装時に throw する一方、`UsecaseImple` 側は存在チェックで素通りする。この非対称が意図的かどうか
 - [ ] 現行の `IScenarioDelegate` 方式（旧 `BaseScenario` 継承方式からの変更）を README にどう記述するか → T-2
-- [ ] npm 移行後のパッケージ名。`@robustive/robustive-ts` のまま npm 上のスコープを取得するか、スコープ無しの `robustive-ts` にするか（README が案内している旧名）→ T-6
-- [ ] 移行後、GitHub Packages 版を非推奨にするか、当面は並行公開するか → T-6

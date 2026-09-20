@@ -28,7 +28,7 @@ v1.1.5 公開済みの実装に対して、検証・文書・構成の穴を塞�
 - [ ] **T-2** README を現行 API に追従させる → SPEC 3.3
   - [ ] T-2.1 存在しない `BaseScenario` / `MutableContext` の記述を `Scenario` / `IScenarioDelegate` / `Context` に置き換える
   - [ ] T-2.2 未記載の機能を追記する: `Directive`（→ D-7）、`Robustive#typeGuards`（→ R-7）、`SwiftEnum`（→ R-8）、`interactedBy` の recursiveWrapper（→ R-10）
-  - [ ] T-2.3 インストール手順を直す。現状の `yarn add robustive-ts` は誤り。ただし公開先の移行（T-6）で正解が変わるため、T-6.1 の決定を待つ → SPEC 2.2
+  - [x] T-2.3 インストール手順と import パスを `@robustive/robustive-ts` に修正（T-6.6 で実施）→ SPEC 2.2
 - [x] **T-3** モノレポを畳み、単一パッケージ構成にする → SPEC D-8, D-9
   - [x] T-3.1 構成を決定（2026-09-20）。当初「モノレポ維持」としたが利用者判断で単一パッケージ化に改訂 → SPEC D-8
   - [x] T-3.2 `packages/express/`（node_modules のみ、git 管理外）を削除
@@ -40,14 +40,15 @@ v1.1.5 公開済みの実装に対して、検証・文書・構成の穴を塞�
 - [ ] **T-5** TypeScript を 5 系へ更新する → SPEC D-9
   - [ ] T-5.1 単独の変更として上げ、`dist/` `types/` の差分がコンパイラ更新由来だけになることを確認する
   - [ ] T-5.2 eslint 8 / @typescript-eslint 5 が追随できるか確認する（必要なら flat config 移行と併せて）
-- [ ] **T-6** パッケージの公開先を GitHub Packages から npm へ移行する → SPEC 2.2, D-6, 5（未決）
-  - [ ] T-6.1 npm 上のパッケージ名を決める。`@robustive` スコープを npm で取得するか、スコープ無しの `robustive-ts`（README が案内している旧名）にするか。名前の空き状況の確認を含む → SPEC 5
-  - [ ] T-6.2 移行後に GitHub Packages 版をどう扱うか決める（非推奨化 / 当面の並行公開）→ SPEC 5
-  - [ ] T-6.3 `.yarnrc.yml` の `npmScopes.robustive`（GitHub Packages 向けレジストリと `${GITHUB_TOKEN}`）を npm 向けに差し替える。これが解消すると、トークン未設定では `yarn` が一切動かない問題も消える（→ 気づいたこと）
-  - [ ] T-6.4 `.github/workflows/publish.yml` を更新: `setup-node` の `registry-url` を npm に、認証を `NPM_TOKEN` シークレット（Yarn 4 は `YARN_NPM_AUTH_TOKEN`）に、不要になる `permissions.packages` を外す
-  - [ ] T-6.5 `package.json` の `name` / `publishConfig` を決定に合わせる。`yarn npm publish --dry-run` 相当（`yarn pack --dry-run`）で同梱物を確認する
-  - [ ] T-6.6 README のインストール手順を新レジストリ・新パッケージ名に直す（T-2.3 と重複するので、先に決着した側に合わせる）
-  - [ ] T-6.7 CLAUDE.md の `GITHUB_TOKEN` に関する記述を移行後の実態に合わせる
+- [~] **T-6** パッケージの公開先を GitHub Packages から npm へ移行する → SPEC 2.2, D-6
+  - [x] T-6.1 パッケージ名は `@robustive/robustive-ts` のまま、npm 上で `@robustive` スコープを取得する方針に決定（2026-09-20）→ SPEC D-6
+  - [x] T-6.2 GitHub Packages 版は廃止。並行公開しないと決定（2026-09-20）→ SPEC D-6
+  - [x] T-6.3 `.yarnrc.yml` から GitHub Packages 向けの `npmScopes.robustive` を削除し、`npmRegistryServer` / `npmPublishRegistry` を npm 公式に明示。`GITHUB_TOKEN` 無しで `yarn` が動くようになった
+  - [x] T-6.4 `publish.yml` を更新: ワークフロー名、`registry-url` / `scope` / `env.GITHUB_TOKEN` / `permissions.packages` を削除し、publish に `YARN_NPM_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}` を付与
+  - [x] T-6.5 `package.json` は `name` / `publishConfig.access: public` とも変更不要と確認。`yarn pack --dry-run` の同梱物も従来どおり
+  - [x] T-6.6 README のインストール手順と、コード例4箇所の import パスを `@robustive/robustive-ts` に統一（T-2.3 もこれで解消）
+  - [x] T-6.7 CLAUDE.md から `GITHUB_TOKEN` 前提の記述を削除し、公開先と CI 認証の記述を更新
+  - [!] T-6.8 npm 側の受け入れ準備 — **リポジトリ外の作業のため未完**: npm で `@robustive` org（スコープ）を作成し、publish 権限を持つ Automation トークンを発行して、GitHub リポジトリに `NPM_TOKEN` シークレットとして登録する。これが済むまでタグを push しても publish は失敗する
 
 ## マイルストーン 2: TBD
 
@@ -61,7 +62,6 @@ T-1〜T-6 の決着後に定義する。
 
 作業中に見つかった、今やらないが忘れたくないこと。溜まったら SPEC.md の未決事項か正式なタスクに昇格させる。
 
-- `.yarnrc.yml` が `${GITHUB_TOKEN}` を必須にしているため、トークン未設定の環境では `yarn` が一切動かない。読み取り専用の操作でも落ちる。npm 移行（T-6.3）で解消する見込みなので、単独の対処はそれまで保留。
 - `.yarn/install-state.gz` が untracked のまま残っている。`.gitignore` に `.yarn/install-state.gz` を足すのが Yarn 4 の定石。
 - `.eslintrc.js` は `env.browser` のみ。`crypto.getRandomValues` を使う一方で Node 実行も想定するなら `env` の見直しが要る → SPEC 2.2
 - eslint 8 系 + `.eslintrc.js`（旧形式）のまま。flat config への移行はいずれ必要になる。

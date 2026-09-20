@@ -23,10 +23,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## コマンド
 
-`.yarnrc.yml` が `npmAuthToken: "${GITHUB_TOKEN}"` を参照するため、**環境変数 `GITHUB_TOKEN` が無いと `yarn` はサブコマンド以前に失敗する**。読み取りだけの操作でもダミー値で足りる。
-
 ```bash
-export GITHUB_TOKEN=dummy      # 未設定なら必ず先に置く
 yarn install --immutable       # 依存の導入
 yarn build                     # tsc（types/）→ vite（dist/）
 yarn build:clean               # dist/ types/ の削除
@@ -48,4 +45,5 @@ yarn pack --dry-run            # 公開パッケージに何が入るかの確�
 - コーディング規約は `.eslintrc.js` が持つ: インデント4スペース、ダブルクォート、セミコロン必須、改行 LF。プロパティの区切りカンマを行頭に置く既存スタイルに合わせる。
 - `README.md` は現行 API とズレている（`BaseScenario` / `MutableContext` は存在しない）。**README を仕様の根拠にしない**。正は `src/` と `SPEC.md`（→ TASK-TREE T-2）。
 - `package.json` の `prepare` は `yarn build` を呼ぶ。publish 時にビルド漏れが起きない代わりに、`yarn install` がビルドを巻き込むことがある。
-- 公開は `v*` タグの push がトリガー（`.github/workflows/publish.yml`）。GitHub Packages 向け。`package.json` の version 更新とタグ付けが公開操作にあたるので、指示なく行わない。
+- 公開は `v*` タグの push がトリガー（`.github/workflows/publish.yml`）。公開先は npm（→ SPEC D-6）。`package.json` の version 更新とタグ付けが公開操作にあたるので、指示なく行わない。
+- CI の publish 認証は `YARN_NPM_AUTH_TOKEN` に渡す `NPM_TOKEN` シークレット。Yarn 4 は npm の `.npmrc` を読まないので、`setup-node` の `registry-url` を足しても認証は通らない。
