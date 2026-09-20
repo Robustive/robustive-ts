@@ -193,11 +193,16 @@ export class Scenario<Z extends Scenes, Directive = null> {
         return Promise.resolve({ ...next, directive } as Context<Z, Directive>);
     }
 
+    /**
+     * Determine whether the actor may perform this usecase.
+     * A scenario that does not implement `authorize` imposes no authorization,
+     * so this returns true rather than throwing.
+     */
     authorize<A extends IActor<NOCARE>, R extends DomainRequirements, D extends StringKeyof<R>, U extends StringKeyof<R[D]>>(actor: A, domain: D, usecase: U): boolean {
         if (this.delegate !== undefined && this.delegate.authorize !== undefined) {
             return this.delegate.authorize(actor, domain, usecase);
         }
-        throw new Error(`USECASE "${usecase}" IS NOT AUTHORIZED FOR ACTOR "${actor.constructor.name}."`);
+        return true;
     }
 
     complete<A extends IActor<NOCARE>, R extends DomainRequirements, D extends keyof R, U extends keyof R[D]>(withResult: InteractResult<R, D, U, A, Z, Directive>): void {

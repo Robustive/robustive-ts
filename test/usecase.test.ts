@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ActorNotAuthorizedToInteractIn, InteractResultType, Robustive } from "../src/index.js";
-import { completionLog, Requirements, requirements, User } from "./fixtures.js";
+import { completionLog, NoAuthorizeScenario, Requirements, requirements, User } from "./fixtures.js";
 
 const U = new Robustive<Requirements>(requirements);
 const alice = () => new User({ name: "alice" });
@@ -118,14 +118,25 @@ describe("authorize", () => {
         expect(result.type).toBe(InteractResultType.success);
     });
 
-    it("delegate.authorize が未実装だと同期的に throw する（現状の挙動をピン留め）", () => {
-        // README は authorize を optional としているが、UsecaseImple は
-        // Scenario#authorize の存在だけを見て必ず呼ぶため、delegate 側が未実装だと
-        // Scenario#authorize が throw する。Promise の reject ではなく同期例外になる。
-        // 意図的な仕様かどうかは docs/SPEC.md 5. 未決事項を参照。
+    it("delegate.authorize が未実装なら認可を課さず、そのまま実行される", async () => {
+        // authorize を書かないシナリオは「誰でも実行できる」とみなす（→ docs/SPEC.md D-12）。
+        // 2026-09-20 以前は、ここで同期的に例外が飛んでいた。
+        const usecase = U.authentication.noAuthorize.basics.userInputs({ id: "alice" });
+        const result = await usecase.interactedBy(alice());
+
+        expect(result.type).toBe(InteractResultType.success);
+    });
+
+    it("delegate.authorize が未実装なら progress も通る", async () => {
         const usecase = U.authentication.noAuthorize.basics.userInputs({ id: "alice" });
 
-        expect(() => usecase.interactedBy(alice())).toThrow(/IS NOT AUTHORIZED/);
+        await expect(usecase.progress(alice())).resolves.toBeDefined();
+    });
+
+    it("Scenario#authorize を直接呼んでも、未実装なら true を返す", () => {
+        const scenario = new NoAuthorizeScenario("authentication", "noAuthorize", "id");
+
+        expect(scenario.authorize(alice(), "authentication", "noAuthorize")).toBe(true);
     });
 });
 

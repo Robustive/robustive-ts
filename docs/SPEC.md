@@ -79,7 +79,7 @@ DomainRequirements（利用側が宣言）
 | メソッド | 実装義務 | 役割 |
 |---|---|---|
 | `next` | 必須 | 現シーンから次シーンへの分岐。未実装なら `Scenario#next` が reject する |
-| `authorize` | **事実上必須** | アクターの実行可否。`UsecaseImple` は `Scenario#authorize`（クラスのメソッドなので常に存在する）の有無だけを見て必ず呼ぶため、delegate 側が未実装だと `Scenario#authorize` が throw する。しかも `interactedBy` / `progress` の中で同期的に投げるので、Promise の reject にもならない（→ 5. 未決事項） |
+| `authorize` | 任意 | アクターの実行可否。未実装なら認可を課さない（`Scenario#authorize` が `true` を返す）。`false` を返した場合のみ `ActorNotAuthorizedToInteractIn` で reject する（→ D-12） |
 | `complete` | 任意 | 正常・異常いずれの終了時にも呼ばれる後処理 |
 
 ## 4. 決定記録
@@ -179,10 +179,17 @@ DomainRequirements（利用側が宣言）
 - 理由: Vitest の前提（→ D-10）。加えて 2.9.18 は 2022 年のリリースで、いずれ追随が必要だった。
 - 検証: 更新前後でビルドして比較した。出力ファイル名は同一、ビルド後の ES モジュールを実際に読み込んで得た export 9件が完全一致、UMD のグローバル名 `Robustive` も維持。バンドルのバイト列は変わるが公開 API は不変。`types/` は tsc の出力なので無影響。
 
+### D-12: `delegate.authorize` は任意。未実装なら認可を課さない
+
+- 日付: 2026-09-20
+- 決定: delegate が `authorize` を実装していないとき、`Scenario#authorize` は `true` を返す。従来はここで throw していた。
+- 経緯: 型でも README でも `authorize` は optional として提示してきたのに、`UsecaseImple` が `Scenario#authorize`（クラスのメソッドなので常に truthy）を無条件に呼ぶため、実装は必須を強いていた。しかも例外は `interactedBy` の中から同期的に飛び、Promise の reject にすらならなかった。T-1 のテストで判明。
+- 理由: 認可を必要としないユースケースのほうが多く、「何も書かなければ誰でも実行できる」ほうが optional という型の見た目と一致する。
+- 却下した案: 仕様として必須に固定し、型からも `?` を外す — v1.1.5 まで optional と案内してきたため、`authorize` を書いていない既存コードが軒並み壊れる。
+- **利用者への影響**: これまで `authorize` 未実装のユースケースは実行時に例外で止まっていた。この変更後は止まらずに実行される。認可のつもりで例外に頼っていたコードがあれば認可漏れになるので、`authorize` を書いていないユースケースが意図どおりかを確認すること。挙動の変更にあたるため、次のリリースでは patch ではなく minor 以上を当てる。
+- 検証: `test/usecase.test.ts` に、未実装なら通ること・`false` なら `ActorNotAuthorizedToInteractIn` で reject すること・`true` なら通ることの3つを置いた。
+
 ## 5. 未決事項
 
 決まっていないことを明示する。ここにある項目は実装してはいけない。
 
-- [ ] `delegate.authorize` が型の上では optional なのに、未実装だと `interactedBy` が同期例外で落ちる点（→ 3.3）。仕様として認める（型も必須にする）のか、未実装なら認可なしで通す実装に直すのかを決める → T-7
-  - 現状の挙動は `test/usecase.test.ts` でピン留めし、README も「required in practice」と実態どおりに書いてある。決定しだいで両方を追従させる
-  - 当初この節には「`UsecaseImple` 側は存在チェックで素通りする」と書いていたが、テストで否定された。`this._scenario.authorize` は常に truthy なので素通りは起きない

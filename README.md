@@ -110,7 +110,7 @@ class SignInScenario extends Scenario<SignInScenes> {
                 }
             }
 
-            // Required in practice: see the table below.
+            // Optional. Without it, anyone may perform this usecase.
             , authorize: (actor) => actor.user === null
         };
     }
@@ -139,7 +139,7 @@ item        | kind     | implement            | description
 just        | method   | provided             | resolves the given context as the next scene.
 withDirective | method | provided             | resolves the next scene with a directive attached, which stops the recursion.
 next        | delegate | required             | a definition of the scenario branch.
-authorize   | delegate | required in practice | decides whether the actor may perform the usecase. Although it is optional on the type, `UsecaseImple` always calls it, so leaving it out makes `interactedBy` throw.
+authorize   | delegate | optional             | decides whether the actor may perform the usecase. A scenario that leaves it out imposes no authorization. Returning `false` rejects with `ActorNotAuthorizedToInteractIn`.
 complete    | delegate | optional             | a termination process called when the usecase ends, both normally and abnormally.
 
 In the end, describe domains and usecases and declare requirements like this.
@@ -262,7 +262,6 @@ class SuspendableScenario extends Scenario<SignInScenes, SuspendDirective> {
                     throw new Error(`not implemented: ${ String(to.scene) }`);
                 }
             }
-            , authorize: () => true
         };
     }
 }

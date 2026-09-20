@@ -177,7 +177,6 @@ class SuspendableScenario extends Scenario<SignInScenes, SuspendDirective> {
                     throw new Error(`not implemented: ${ String(to.scene) }`);
                 }
             }
-            , authorize: () => true
         };
     }
 }

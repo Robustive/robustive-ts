@@ -47,9 +47,8 @@ export class SignInScenario extends Scenario<SignInScenes> {
 }
 
 /**
- * delegate.authorize を持たないシナリオ。
- * README は authorize を optional としているが、実際には Scenario#authorize が必ず
- * 呼ばれるため実装必須になっている（→ docs/SPEC.md 3.3 と 5. 未決事項）。
+ * delegate.authorize を持たないシナリオ。認可を課さずに実行できることを見る
+ * （→ docs/SPEC.md D-12）。
  */
 export class NoAuthorizeScenario extends Scenario<SignInScenes> {
     constructor(domain: string, usecase: string, id: string) {

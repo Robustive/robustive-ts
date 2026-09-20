@@ -13,7 +13,7 @@
 
 ## 現在のフォーカス
 
-**T-7** — `delegate.authorize` の扱いを決める（要判断）
+**T-6.8** — npm の org 作成と `NPM_TOKEN` 登録（リポジトリ外の作業。これが済めば公開できる）
 
 ## マイルストーン 1: 土台の立て直し
 
@@ -55,9 +55,10 @@ v1.1.5 公開済みの実装に対して、検証・文書・構成の穴を塞�
   - [x] T-6.7 CLAUDE.md から `GITHUB_TOKEN` 前提の記述を削除し、公開先と CI 認証の記述を更新
   - [!] T-6.8 npm 側の受け入れ準備 — **リポジトリ外の作業のため未完**: npm で `@robustive` org（スコープ）を作成し、publish 権限を持つ Automation トークンを発行して、GitHub リポジトリに `NPM_TOKEN` シークレットとして登録する。これが済むまでタグを push しても publish は失敗する
 
-- [ ] **T-7** `delegate.authorize` が事実上必須になっている件を決着させる → SPEC 3.3, 5（未決）
-  - [ ] T-7.1 仕様として認める（README と SPEC を「必須」に統一）か、未実装なら認可なしで通す実装に直すかを決める。T-1 のテストで、未実装時に `interactedBy` が同期例外で落ちることを確認済み
-  - [ ] T-7.2 決定に沿って実装かドキュメントを直し、`test/usecase.test.ts` の該当テストを追従させる（現状は「現状の挙動のピン留め」として書いてある）
+- [x] **T-7** `delegate.authorize` が事実上必須になっている件を決着させる → SPEC D-12
+  - [x] T-7.1 「未実装なら認可なしで通す」実装修正を選択（2026-09-20）→ SPEC D-12
+  - [x] T-7.2 `Scenario#authorize` の throw を `return true` に変更。テストを新挙動に書き換え（未実装で成功する / progress も通る / 直接呼んでも true）、README の表を optional に戻し、directive の例からは `authorize` を省いて optional であることを示した
+  - [x] T-7.3 SPEC 3.3 と 5. 未決事項を改訂。挙動変更にあたるため、次のリリースは patch ではなく minor 以上を当てる旨を D-12 に明記
 ## マイルストーン 2: TBD
 
 T-1〜T-6 の決着後に定義する。
