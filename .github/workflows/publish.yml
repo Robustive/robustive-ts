@@ -32,5 +32,5 @@ jobs:
 
       - run: yarn workspaces foreach --all -pt --no-private run build
 
-      # core → express の順で publish（-t が依存順）
+      # -t は workspace 間の依存順を保つため（現在の公開対象は core のみ）
       - run: yarn workspaces foreach --all -t --no-private npm publish

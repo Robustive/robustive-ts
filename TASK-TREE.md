@@ -29,9 +29,9 @@ v1.1.5 公開済みの実装に対して、検証・文書・構成の穴を塞�
   - [ ] T-2.1 存在しない `BaseScenario` / `MutableContext` の記述を `Scenario` / `IScenarioDelegate` / `Context` に置き換える
   - [ ] T-2.2 未記載の機能を追記する: `Directive`（→ D-7）、`Robustive#typeGuards`（→ R-7）、`SwiftEnum`（→ R-8）、`interactedBy` の recursiveWrapper（→ R-10）
   - [ ] T-2.3 インストール手順を `@robustive/robustive-ts`（GitHub Packages）に直す。現状は `yarn add robustive-ts` のままで誤り → SPEC 2.2
-- [ ] **T-3** `packages/express` の扱いを決める → SPEC 1.3, D-4
-  - [ ] T-3.1 モノレポを維持するか単一パッケージに畳むかを決め、SPEC 4 に決定記録を足す
-  - [ ] T-3.2 決定に沿って `packages/express/` の残骸を処理する（git 管理外のため作業ツリーの掃除のみ）
+- [x] **T-3** `packages/express` の扱いを決める → SPEC 1.3, D-4, D-8
+  - [x] T-3.1 モノレポ維持・express は復活させないと決定（2026-09-20）→ SPEC D-8
+  - [x] T-3.2 `packages/express/`（node_modules のみ、git 管理外）を削除。`publish.yml` の古いコメントも実態に合わせた
 - [ ] **T-4** `dist/` `types/` のコミット運用を見直す → SPEC D-3
   - [ ] T-4.1 コミット済み生成物に依存している利用者・手順がないか確認する（publish.yml は自前で build しており非依存）
   - [ ] T-4.2 追跡から外すなら `.gitignore` と `.github/workflows/publish.yml` を対で更新し、D-3 を改訂する

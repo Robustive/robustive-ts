@@ -19,7 +19,7 @@
 ### 1.3 やらないこと
 
 - UI レイヤの提供。シナリオの実行結果（`InteractResult`）をどう画面に反映するかは利用側の責務。
-- HTTP フレームワークとの統合。かつて `packages/express` が担っていたが削除済み（→ D-4）。
+- HTTP フレームワークとの統合。かつて `packages/express` が担っていたが削除済みで、復活させない（→ D-4, D-8）。
 - ランタイムのバリデーション。`Context` の妥当性は型でしか守らない。実行時チェックは入れない。
 - DI コンテナ、状態管理ストア。`Scenario` の依存注入は利用側が `delegate` で行う。
 
@@ -113,7 +113,15 @@ DomainRequirements（利用側が宣言）
 - 日付: 2026-05-17（コミット `0ba1a01`）
 - 決定: `@robustive/robustive-ts-express` を削除し、Express 依存をリポジトリから外す。
 - 理由: コアの責務（シナリオの型表現と実行）に HTTP レイヤは含まれない（→ 1.3）。
-- 残課題: `packages/express/` ディレクトリが node_modules だけ残っている（→ TASK-TREE T-3）。
+- 残課題: なし。作業ツリーに残っていた `packages/express/`（node_modules のみ、git 管理外）は 2026-09-20 に削除した（→ D-8）。
+
+### D-8: モノレポ構成は維持し、公開パッケージは core 単独とする
+
+- 日付: 2026-09-20
+- 決定: `packages/express` は完全に不要と判断し、残骸を削除する。単一パッケージ構成へは畳まず、Yarn workspaces のモノレポ構成（`packages/*`）は維持する。HTTP アダプタを再設計して復活させる予定もない。
+- 理由: 利用者の判断。HTTP レイヤはコアの責務外（→ 1.3）であり、アダプタを別パッケージで抱える必要が現時点でない。一方でモノレポを畳むと、`packages/core` の移動によって publish ワークフロー・tsconfig・公開パスの全てに手が入り、削除の目的（残骸の掃除）に対して変更が過大になる。
+- 却下した案: 単一パッケージ化（`packages/core` をリポジトリルートへ昇格）— 上記のとおり影響範囲が目的に見合わない。将来パッケージを足す余地も失う。
+- 覆す条件: 公開パッケージが core 単独のまま長く固定され、workspaces の間接コストが目立ってきたとき。
 
 ### D-5: SwiftEnum の Utils をクラスメソッドから関数へ変更する
 
@@ -139,6 +147,5 @@ DomainRequirements（利用側が宣言）
 
 - [ ] テストの方式（型テストをどう書くか、ランタイムテストのランナー選定）→ T-1
 - [ ] `dist/` / `types/` のコミットを継続するか → D-3 / T-4
-- [ ] `packages/express` を再設計して復活させるか、モノレポ構成自体をやめて単一パッケージにするか → T-3
 - [ ] `Scenario#authorize` が delegate 未実装時に throw する一方、`UsecaseImple` 側は存在チェックで素通りする。この非対称が意図的かどうか
 - [ ] 現行の `IScenarioDelegate` 方式（旧 `BaseScenario` 継承方式からの変更）を README にどう記述するか → T-2

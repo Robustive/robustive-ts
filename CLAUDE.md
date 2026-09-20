@@ -46,5 +46,4 @@ yarn run eslint "packages/core/src/**/*.ts"        # lint（package.json に scr
 - コーススタイルは `basics` / `alternatives` / `goals` の3つ固定。増やす前に SPEC D-2 を読む。
 - コーディング規約は `.eslintrc.js` が持つ: インデント4スペース、ダブルクォート、セミコロン必須、改行 LF。プロパティの区切りカンマを行頭に置く既存スタイルに合わせる。
 - `packages/core/README.md` は現行 API とズレている（`BaseScenario` / `MutableContext` は存在しない）。**README を仕様の根拠にしない**。正は `src/` と `SPEC.md`（→ TASK-TREE T-2）。
-- `packages/express/` は削除済みパッケージの残骸ディレクトリ。git 管理下には無い（→ TASK-TREE T-3）。
 - 公開は `v*` タグの push がトリガー（`.github/workflows/publish.yml`）。GitHub Packages 向け。`packages/core/package.json` の version 更新とタグ付けが公開操作にあたるので、指示なく行わない。
