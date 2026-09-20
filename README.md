@@ -20,6 +20,8 @@ A scenario is an object that has the method to execute scenes. A scenario can st
 
 Control Objects in the robustness diagram are the behavior (processing) of the system in each scene, and Entity Objects are the context (states) in that processing.
 
+Every scene belongs to one of three courses: `basics`, `alternatives` and `goals`. Execution stops when it reaches a scene in `goals`.
+
 ### Describe Usecases as codes
 
 Define contents of behaviors like below.
@@ -28,19 +30,19 @@ Define contents of behaviors like below.
 const SignIn = {
     /* Basic Courses */
     basics: {
-        userStartsSignInProcess: "ユーザはサインインを開始する"
-        , serviceValidateInputs: "サービスは入力項目に問題がないかを確認する"
-        , onSuccessInValidatingThenServiceTrySigningIn: "入力項目に問題がない場合_サービスはサインインを試行する"
+        userStartsSignInProcess: "userStartsSignInProcess"
+        , serviceValidatesInputs: "serviceValidatesInputs"
+        , serviceTriesSigningIn: "serviceTriesSigningIn"
     }
-    
+
     /* Alternative Courses */
     // alternatives: { /* nothing on this usecase. */ }
 
     /* Boundaries */
     , goals: {
-        onSuccessInSigningInThenServicePresentsHomeView: "サインインに成功した場合_サービスはホーム画面を表示する"
-        , onFailureInValidatingThenServicePresentsError: "入力項目に問題がある場合_サービスはエラーを表示する"
-        , onFailureInSigningInThenServicePresentsError: "サインインに失敗した場合_サービスはエラーを表示する"
+        servicePresentsHomeView: "servicePresentsHomeView"
+        , servicePresentsValidationError: "servicePresentsValidationError"
+        , servicePresentsSignInError: "servicePresentsSignInError"
     }
 } as const;
 ```
@@ -51,8 +53,8 @@ Define contexts of behaviors like below.
 import type { Empty } from "@robustive/robustive-ts";
 
 /**
- *  This must be extends Scenes. 
- * 
+ *  This must extend Scenes.
+ *
  *  ```
  *  type ContextualValues = Record<string, object>;
  *  type Scenes = {
@@ -61,72 +63,84 @@ import type { Empty } from "@robustive/robustive-ts";
  *      goals: ContextualValues;
  *  };
  *  ```
- **/ 
+ *
+ *  A course with no scenes is declared as `Empty`.
+ **/
 type SignInScenes = {
-    basics : {
-        [SignIn.basics.userStartsSignInProcess]: { id: string | null; password: string | null; };
-        [SignIn.basics.serviceValidateInputs]: { id: string | null; password: string | null; };
-        [SignIn.basics.onSuccessInValidatingThenServiceTrySigningIn]: { id: string; password: string; };
+    basics: {
+        [SignIn.basics.userStartsSignInProcess]: { id: string | null; password: string | null };
+        [SignIn.basics.serviceValidatesInputs]: { id: string | null; password: string | null };
+        [SignIn.basics.serviceTriesSigningIn]: { id: string; password: string };
     };
     alternatives: Empty;
-    goals : {
-        [SignIn.goals.onSuccessInSigningInThenServicePresentsHomeView]: { user: UserProperties; };
-        [SignIn.goals.onFailureInValidatingThenServicePresentsError]: { result: SignInValidationResult; };
-        [SignIn.goals.onFailureInSigningInThenServicePresentsError]: { error: Error; };
+    goals: {
+        [SignIn.goals.servicePresentsHomeView]: { user: UserProperties };
+        [SignIn.goals.servicePresentsValidationError]: { reason: string };
+        [SignIn.goals.servicePresentsSignInError]: { error: Error };
     };
 };
 ```
 
-Please extend the BaseScenario abstract class and define your Scenario class for each usecase.
+Extend the `Scenario` class for each usecase and give it a delegate. The delegate's `next` decides which scene comes after the current one.
 
-If the scene behavior is a process performed by the system, define it as a private function in the Scenario class. If the scene has an Entity Object, use that as arguments.
+If the scene behavior is a process performed by the system, define it as a private method of the scenario class. If the scene has an Entity Object, use that as arguments.
 
-The return value should be a Promise that returns the Context of the next scene.
+The return value should be a Promise that returns the Context of the next scene. `this.basics`, `this.alternatives` and `this.goals` build the context of a scene in that course, and `this.just` resolves it as the next scene.
 
 ```typescript
-import { BaseScenario, Context } from "@robustive/robustive-ts";
+import { Context, Scenario } from "@robustive/robustive-ts";
 
-class SignInScenario extends BaseScenario<SignInScenes> {
+class SignInScenario extends Scenario<SignInScenes> {
+    constructor(domain: string, usecase: string, id: string) {
+        super(domain, usecase, id);
+        this.delegate = {
+            next: (to) => {
+                switch (to.scene) {
+                case SignIn.basics.userStartsSignInProcess:
+                    return this.just(this.basics.serviceValidatesInputs({ id: to.id, password: to.password }));
 
-    next(to: MutableContext<SignInScenes>): Promise<Context<SignInScenes>> {
-        switch (to.scene) {
-        case _u.basics.userStartsSignInProcess: {
-            return this.just(this.basics[SignIn.basics.serviceValidateInputs]({ id: to.id, password: to.password }));
-        }
-        case _u.basics.serviceValidateInputs: {
-            return this.validate(to.id, to.password);
-        }
-        case _u.basics.onSuccessInValidatingThenServiceTrySigningIn: {
-            return this.signIn(to.id, to.password);
-        }
-        default: {
-            throw new Error(`not implemented: ${ to.scene }`);
-        }
-        }
+                case SignIn.basics.serviceValidatesInputs:
+                    return this.validate(to.id, to.password);
+
+                case SignIn.basics.serviceTriesSigningIn:
+                    return this.signIn(to.id, to.password);
+
+                default:
+                    throw new Error(`not implemented: ${ String(to.scene) }`);
+                }
+            }
+
+            // Required in practice: see the table below.
+            , authorize: (actor) => actor.user === null
+        };
     }
 
     private validate(id: string | null, password: string | null): Promise<Context<SignInScenes>> {
         // TODO: Implement UserModel so that it can validate id and password.
-        const result = User.validate(id, password);
-        if (result === true && id !== null && password != null) {
-            return this.just(this.basics[SignIn.basics.onSuccessInValidatingThenServiceTrySigningIn]({ id, password }));
-        } else {
-            return this.just(this.goals[SignIn.goals.onFailureInValidatingThenServicePresentsError]({ result }));
-        }
+        const reason = User.validate(id, password);
+        return (reason === null && id !== null && password !== null)
+            ? this.just(this.basics.serviceTriesSigningIn({ id, password }))
+            : this.just(this.goals.servicePresentsValidationError({ reason: reason ?? "unknown" }));
     }
 
     private signIn(id: string, password: string): Promise<Context<SignInScenes>> {
         // TODO: Implement UserModel so that a user can sign in with id and password.
         return User.signIn(id, password)
-            .then(userProperties => {
-                return this.just(this.goals[SignIn.goals.onSuccessInSigningInThenServicePresentsHomeView]({ user: userProperties }));
-            })
-            .catch((error: Error) => {
-                return this.just(this.goals[SignIn.goals.onFailureInSigningInThenServicePresentsError]({ error })
-            });
+            .then(user => this.just(this.goals.servicePresentsHomeView({ user })))
+            .catch((error: Error) => this.just(this.goals.servicePresentsSignInError({ error })));
     }
 }
 ```
+
+`Scenario` provides these helpers, and `IScenarioDelegate` takes these three methods:
+
+item        | kind     | implement            | description
+------------|----------|----------------------|---------------------------------------------
+just        | method   | provided             | resolves the given context as the next scene.
+withDirective | method | provided             | resolves the next scene with a directive attached, which stops the recursion.
+next        | delegate | required             | a definition of the scenario branch.
+authorize   | delegate | required in practice | decides whether the actor may perform the usecase. Although it is optional on the type, `UsecaseImple` always calls it, so leaving it out makes `interactedBy` throw.
+complete    | delegate | optional             | a termination process called when the usecase ends, both normally and abnormally.
 
 In the end, describe domains and usecases and declare requirements like this.
 
@@ -134,79 +148,181 @@ In the end, describe domains and usecases and declare requirements like this.
 import { Robustive } from "@robustive/robustive-ts";
 
 /**
- *  This must be implement DomainRequirements.
- * 
+ *  This must satisfy DomainRequirements.
+ *
  *  ```
- *  type UsecaseScenarios = Record<string, new () => IScenario<any>>;
- *  type DomainRequirements = Record<string,  UsecaseScenarios>;
+ *  type UsecaseScenarios<D extends string> = {
+ *      [U in string]: new (domain: D, usecase: U, id: string) => Scenario<any, any>
+ *  };
+ *  type DomainRequirements = { [D in string]: UsecaseScenarios<D> };
  *  ```
- **/ 
+ **/
 const requirements = {
-    applicationDomain : {
-        boot : BootScenario
+    authentication: {
+        signIn: SignInScenario
+        // , signUp: SignUpScenario
+        // , signOut: SignOutScenario
     }
-    , authenticationDomain : {
-        signIn : SignInScenario
-        , signUp : SignUpScenario
-        , signOut : SignOutScenario
-    }
-    ...
 };
 
 type Requirements = typeof requirements;
-const U = new Robustive(requirements);
+const U = new Robustive<Requirements>(requirements);
 ```
-
-item      | kind      | implement   | description
-----------|-----------|-------------|---------------------------------------------
-just      | method    | implemented | use when performing the next scene.
-next      | method    | required    | a definitions of scenario branch.
-authorize | method    | optional    | a method to check if the actor can perform the usecase.
-complete  | method    | optional    | a termination process when the usecase ends normally or abnormally.
-
 
 ### Perform a Usecase
 
-Describe application behaviors.
+Describe application behaviors. `interactedBy` runs the scenario to completion and resolves with an `InteractResult`, which is either `success` or `failure`.
 
 ```typescript
-import { Usecase } from "@robustive/robustive-ts";
+import { InteractResultType, Usecase } from "@robustive/robustive-ts";
 
-const signIn = (usecase: Usecase<Requirements, "authentication", "signIp">, actor: Actor): Promise<void> => {
+const signIn = (usecase: Usecase<Requirements, "authentication", "signIn">, actor: Nobody): Promise<void> => {
     return usecase
         .interactedBy(actor)
         .then(result => {
-            if (result.type !== InteractResultType.success) { return; }
+            if (result.type !== InteractResultType.success) {
+                // result.error, result.failedSceneContext and result.performedScenario are available here.
+                console.error(result.error);
+                return;
+            }
+
             const context = result.lastSceneContext;
-            
-            switch(context.scene){
-            case SignIn.goals.onSuccessThenServicePresentsHomeView:
+
+            switch (context.scene) {
+            case SignIn.goals.servicePresentsHomeView:
                 // TODO: show home view.
+                console.log(context.user.id);
                 break;
 
-            case SignIn.goals.onFailureInValidatingThenServicePresentsError: {
+            case SignIn.goals.servicePresentsValidationError:
                 // TODO: show errors.
+                console.log(context.reason);
                 break;
-            }
-            case SignIn.goals.onFailureThenServicePresentsError: {
+
+            case SignIn.goals.servicePresentsSignInError:
                 // TODO: show errors.
+                console.log(context.error.message);
                 break;
-            }
             }
         });
-    });
 };
 ```
 
+A successful result also carries `id`, `actor`, `domain`, `usecase`, `startAt`, `endAt`, `elapsedTimeMs` and `performedScenario` (every context the run went through, in order).
+
 ### Start performing a Usecase
 
+An actor implements `IActor`, or extends `AbstractActor`.
+
 ```typescript
-const usecase = U.authenticationDomain
-                    .signIn
-                    .basics[SignIn.basics.userStartsSignInProcess]({ 
-                        id: state.email
-                        , password: state.password 
-                    });
+import { AbstractActor } from "@robustive/robustive-ts";
+
+class Nobody extends AbstractActor<UserProperties> {
+    isAuthorizedTo(): boolean {
+        return true;
+    }
+}
+
+const usecase = U.authentication
+    .signIn
+    .basics[SignIn.basics.userStartsSignInProcess]({
+        id: state.email
+        , password: state.password
+    });
 
 signIn(usecase, new Nobody());
 ```
+
+To advance one scene at a time instead of running to completion, use `progress`:
+
+```typescript
+const next = await usecase.progress(new Nobody());
+```
+
+### Stop before a goal: directives
+
+A scenario may declare a directive type as its second type parameter. When `withDirective` attaches a truthy directive to a context, the recursion stops there even though the scene is not in `goals`. This is the way to hand control back to the caller in the middle of a scenario, for example to wait for a confirmation.
+
+```typescript
+type SuspendDirective = "suspend" | null;
+
+class SuspendableScenario extends Scenario<SignInScenes, SuspendDirective> {
+    constructor(domain: string, usecase: string, id: string) {
+        super(domain, usecase, id);
+        this.delegate = {
+            next: (to) => {
+                switch (to.scene) {
+                case SignIn.basics.userStartsSignInProcess:
+                    return this.withDirective(
+                        this.basics.serviceValidatesInputs({ id: to.id, password: to.password })
+                        , "suspend"
+                    );
+
+                default:
+                    throw new Error(`not implemented: ${ String(to.scene) }`);
+                }
+            }
+            , authorize: () => true
+        };
+    }
+}
+```
+
+Note that the check is truthiness, so `0` and `""` do not stop the recursion.
+
+### Wrap the whole run
+
+`interactedBy` takes an optional wrapper around the entire recursion, which is where a transaction or a spinner belongs.
+
+```typescript
+const result = await usecase.interactedBy(actor, async (recursive) => {
+    beginTransaction();
+    const r = await recursive();
+    commit();
+    return r;
+});
+```
+
+### Type guards
+
+`Robustive` generates a type guard per domain and usecase, which narrows a `Scenario` to the one declared in the requirements.
+
+```typescript
+if (U.typeGuards.authentication.signIn(scenario)) {
+    // scenario is Scenario<SignInScenes, null> here.
+}
+```
+
+The generated `keys` let you refer to names without repeating string literals: `U.keys.authentication`, `U.authentication.keys.signIn` and `U.authentication.signIn.keys.basics.userStartsSignInProcess`.
+
+### SwiftEnum
+
+`SwiftEnum` builds a Swift-like enum with associated values. Cases are frozen once created.
+
+```typescript
+import { SwiftEnum } from "@robustive/robustive-ts";
+import type { Empty, SwiftEnumCases } from "@robustive/robustive-ts";
+
+type ValidationResult = {
+    valid: Empty;
+    invalid: { reason: string };
+};
+
+const ValidationResult = new SwiftEnum<ValidationResult>();
+
+const result = ValidationResult.invalid({ reason: "empty id" });
+result.case;    // "invalid"
+result.reason;  // "empty id"
+```
+
+Pass a factory to give every case shared behavior. The case itself is handed in as an explicit argument.
+
+```typescript
+const ValidationResult = new SwiftEnum<ValidationResult, { describe: () => string }>(
+    (c) => ({ describe: () => (c.case === "invalid" ? c.reason : "valid") })
+);
+
+ValidationResult.invalid({ reason: "empty id" }).describe(); // "empty id"
+```
+
+`ValidationResult.keys.invalid` yields the case name as a string, the same way scene keys do.

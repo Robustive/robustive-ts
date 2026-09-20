@@ -13,7 +13,7 @@
 
 ## 現在のフォーカス
 
-**T-2** — README を現行 API に追従させる（T-2.4 は T-7 の決定待ち）
+**T-7** — `delegate.authorize` の扱いを決める（要判断）
 
 ## マイルストーン 1: 土台の立て直し
 
@@ -26,11 +26,12 @@ v1.1.5 公開済みの実装に対して、検証・文書・構成の穴を塞�
   - [x] T-1.4 `interactedBy` のランタイムテスト（`test/usecase.test.ts`、13件）→ SPEC D-7, R-3, R-5
   - [x] T-1.5 `SwiftEnum`（`test/enum.test.ts`、6件）と `Robustive` / `typeGuards`（`test/robustive.test.ts`、9件）→ SPEC R-7, R-8
   - [x] T-1.6 設定の分離: `tsconfig.json` を `include: ["src"]` でビルド専用にし、型検査用に `tsconfig.test.json` を追加
-- [ ] **T-2** README を現行 API に追従させる → SPEC 3.3
-  - [ ] T-2.1 存在しない `BaseScenario` / `MutableContext` の記述を `Scenario` / `IScenarioDelegate` / `Context` に置き換える
-  - [ ] T-2.2 未記載の機能を追記する: `Directive`（→ D-7）、`Robustive#typeGuards`（→ R-7）、`SwiftEnum`（→ R-8）、`interactedBy` の recursiveWrapper（→ R-10）
+- [x] **T-2** README を現行 API に追従させる → SPEC 3.3
+  - [x] T-2.1 `BaseScenario` / `MutableContext` / 未定義の `_u` を、`Scenario` + `delegate` / `Context` に置き換え
+  - [x] T-2.2 未記載だった機能を追記: directive による中断（→ D-7）、`typeGuards` と `keys`（→ R-7）、`SwiftEnum`（→ R-8）、`interactedBy` の recursiveWrapper（→ R-10）、`progress`、`InteractResult` の中身
   - [x] T-2.3 インストール手順と import パスを `@robustive/robustive-ts` に修正（T-6.6 で実施）→ SPEC 2.2
-  - [ ] T-2.4 `authorize` を optional と書いている表を直す。実態は事実上必須（→ T-7 の決定待ち）
+  - [x] T-2.4 `authorize` の行を実態に合わせ「required in practice」とし、型の上は optional だが未実装だと `interactedBy` が throw することを明記。T-7 で実装を直す決定になれば README も追従させる
+  - [x] T-2.5 README のコード例を `test/readme.test-d.ts` に写し、`yarn test` で型が通ることを継続的に検査するようにした。この作業で directive の例が実際に壊れていたことが判明（`to` を絞り込まずに `to.id` を参照）
 - [x] **T-3** モノレポを畳み、単一パッケージ構成にする → SPEC D-8, D-9
   - [x] T-3.1 構成を決定（2026-09-20）。当初「モノレポ維持」としたが利用者判断で単一パッケージ化に改訂 → SPEC D-8
   - [x] T-3.2 `packages/express/`（node_modules のみ、git 管理外）を削除
@@ -69,6 +70,7 @@ T-1〜T-6 の決着後に定義する。
 
 作業中に見つかった、今やらないが忘れたくないこと。溜まったら `docs/SPEC.md` の未決事項か正式なタスクに昇格させる。
 
+- `README.md` と `test/readme.test-d.ts` は同じコード例を二重に持っている。型が通ることは保証されるが、内容の同期は人力。README からコードブロックを抽出して検査する形にできれば、二重管理をやめられる。
 - `.yarn/install-state.gz` が untracked のまま残っている。`.gitignore` に `.yarn/install-state.gz` を足すのが Yarn 4 の定石。
 - `.eslintrc.js` は `env.browser` のみ。`crypto.getRandomValues` を使う一方で Node 実行も想定するなら `env` の見直しが要る → SPEC 2.2
 - eslint 8 系 + `.eslintrc.js`（旧形式）のまま。TypeScript 5.9 では支障が無いと確認済み（→ T-5.2）だが、flat config への移行はいずれ必要になる。

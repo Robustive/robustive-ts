@@ -183,6 +183,6 @@ DomainRequirements（利用側が宣言）
 
 決まっていないことを明示する。ここにある項目は実装してはいけない。
 
-- [ ] `delegate.authorize` が事実上必須になっている点（→ 3.3）。README は「optional」と書いているが、未実装だと `interactedBy` が同期例外で落ちる。テストでは現状の挙動をそのまま固定してある（`test/usecase.test.ts`）。仕様として認めるのか、未実装なら認可なしで通す実装に直すのかを決める
+- [ ] `delegate.authorize` が型の上では optional なのに、未実装だと `interactedBy` が同期例外で落ちる点（→ 3.3）。仕様として認める（型も必須にする）のか、未実装なら認可なしで通す実装に直すのかを決める → T-7
+  - 現状の挙動は `test/usecase.test.ts` でピン留めし、README も「required in practice」と実態どおりに書いてある。決定しだいで両方を追従させる
   - 当初この節には「`UsecaseImple` 側は存在チェックで素通りする」と書いていたが、テストで否定された。`this._scenario.authorize` は常に truthy なので素通りは起きない
-- [ ] 現行の `IScenarioDelegate` 方式（旧 `BaseScenario` 継承方式からの変更）を README にどう記述するか → T-2
