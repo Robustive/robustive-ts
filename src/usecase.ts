@@ -20,8 +20,8 @@ type Flatten<Z> = {
         : never;
 };
 
-const courses = ["basics", "alternatives", "goals"] as const;
-export type Courses = typeof courses[number];
+// Courses are fixed to these three (see docs/SPEC.md D-2).
+export type Courses = "basics" | "alternatives" | "goals";
 type Basics = Extract<Courses, "basics">;
 type Alternatives = Extract<Courses, "alternatives">;
 type Goals = Extract<Courses, "goals">;

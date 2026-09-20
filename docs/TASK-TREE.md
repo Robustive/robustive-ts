@@ -13,7 +13,7 @@
 
 ## 現在のフォーカス
 
-**T-6.8** — npm の org 作成と `NPM_TOKEN` 登録（リポジトリ外の作業。これが済めば公開できる）
+**T-6.8** — npm の org 作成と `NPM_TOKEN` 登録（リポジトリ外の作業）
 
 ## マイルストーン 1: 土台の立て直し
 
@@ -59,6 +59,13 @@ v1.1.5 公開済みの実装に対して、検証・文書・構成の穴を塞�
   - [x] T-7.1 「未実装なら認可なしで通す」実装修正を選択（2026-09-20）→ SPEC D-12
   - [x] T-7.2 `Scenario#authorize` の throw を `return true` に変更。テストを新挙動に書き換え（未実装で成功する / progress も通る / 直接呼んでも true）、README の表を optional に戻し、directive の例からは `authorize` を省いて optional であることを示した
   - [x] T-7.3 SPEC 3.3 と 5. 未決事項を改訂。挙動変更にあたるため、次のリリースは patch ではなく minor 以上を当てる旨を D-12 に明記
+- [x] **T-8** eslint を flat config へ移行する → SPEC D-13
+  - [x] T-8.1 eslint 8.57 → 9.39、`@typescript-eslint/*` v5 を統合パッケージ `typescript-eslint` v8 に置換。`@eslint/js` と `globals` を追加
+  - [x] T-8.2 `eslint.config.mjs` を作成し `.eslintrc.js` を削除。globals を browser + node に。`lint` script は `eslint .`（除外は config の `ignores` が持つ）
+  - [x] T-8.3 移行前後で同一の8件が検出されることを確認。severity は warning → error に変化（v8 recommended の既定）
+  - [x] T-8.4 v8 が指摘した `const courses` を `Courses` の union 直書きに変更。ビルド後の JS は完全一致 → SPEC D-13
+  - [ ] T-8.5 残件: フォーマット系ルール（`indent` / `quotes` / `semi` / `linebreak-style`）を `@stylistic` へ移すかは別途判断（eslint 本体では非推奨、10 で削除予定）→ SPEC D-13
+
 ## マイルストーン 2: TBD
 
 T-1〜T-6 の決着後に定義する。
@@ -72,5 +79,3 @@ T-1〜T-6 の決着後に定義する。
 作業中に見つかった、今やらないが忘れたくないこと。溜まったら `docs/SPEC.md` の未決事項か正式なタスクに昇格させる。
 
 - `README.md` と `test/readme.test-d.ts` は同じコード例を二重に持っている。型が通ることは保証されるが、内容の同期は人力。README からコードブロックを抽出して検査する形にできれば、二重管理をやめられる。
-- `.eslintrc.js` は `env.browser` のみ。`crypto.getRandomValues` を使う一方で Node 実行も想定するなら `env` の見直しが要る → SPEC 2.2
-- eslint 8 系 + `.eslintrc.js`（旧形式）のまま。TypeScript 5.9 では支障が無いと確認済み（→ T-5.2）だが、flat config への移行はいずれ必要になる。

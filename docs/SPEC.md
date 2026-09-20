@@ -189,6 +189,19 @@ DomainRequirements（利用側が宣言）
 - **利用者への影響**: これまで `authorize` 未実装のユースケースは実行時に例外で止まっていた。この変更後は止まらずに実行される。認可のつもりで例外に頼っていたコードがあれば認可漏れになるので、`authorize` を書いていないユースケースが意図どおりかを確認すること。挙動の変更にあたるため、次のリリースでは patch ではなく minor 以上を当てる。
 - 検証: `test/usecase.test.ts` に、未実装なら通ること・`false` なら `ActorNotAuthorizedToInteractIn` で reject すること・`true` なら通ることの3つを置いた。
 
+### D-13: eslint を flat config へ移行する
+
+- 日付: 2026-09-20
+- 決定: `.eslintrc.js` を廃して `eslint.config.js`（flat config）にする。eslint を 9 系、`typescript-eslint`（統合パッケージ）を 8 系へ更新し、旧 `@typescript-eslint/eslint-plugin` と `@typescript-eslint/parser` は落とす。
+- 理由: eslintrc 形式は eslint 9 で非推奨、10 で削除予定。@typescript-eslint v5 は flat config を扱えないため、設定形式の移行と依存更新は分けられない。
+- 併せて変更: グローバル定義を browser のみから browser + node の両方にする。このライブラリはブラウザ・Node 双方で動く前提（→ 1.2）で、テストと設定ファイルは Node で動くため、browser だけという旧 `env` は実態と合っていなかった。
+- 却下した案:
+  - eslint 8.57 のまま flat config を使う — 過渡的で、結局 9 へ上げる必要がある。
+  - フォーマット系ルール（`indent` / `quotes` / `semi` / `linebreak-style`）を `@stylistic` へ移す — eslint 本体では非推奨扱いだが、移すかどうかは設定形式の移行とは別の判断。今回は同じルールを維持する（→ TASK-TREE T-8 の残件）。
+- 設定ファイルは `eslint.config.mjs`。`.js` のままだと ESM 構文を Node が再パースして警告を出すが、`package.json` に `"type": "module"` を足す手は採れない（`vite.config.js` が `__dirname` を使う CJS のため壊れる）。
+- 検証: 移行の前後で、意図的に違反を含むファイルに対して同一の8件（同じ行・同じルール）が検出されることを確認した。severity は変わり、`no-unused-vars` と `no-explicit-any` が warning から error になった（typescript-eslint v8 の recommended の既定）。既存コードに違反は無いのでそのまま受け入れた。
+- 副作用: v8 の `no-unused-vars` が `const courses = [...] as const` を「型としてしか使われていない値」と指摘したため、`Courses` を union 型の直書きに変えた。ビルド後の JS は完全一致で、`.d.ts` からは内部用の `declare const courses` が消えただけ。
+
 ## 5. 未決事項
 
 決まっていないことを明示する。ここにある項目は実装してはいけない。
