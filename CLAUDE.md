@@ -10,16 +10,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 このリポジトリは3つのファイルで状態を管理する。役割を混ぜないこと。
 
-- `SPEC.md` — 仕様と決定の根拠。What と Why。
-- `TASK-TREE.md` — 現在地。階層タスクとステータス。
+- `docs/SPEC.md` — 仕様と決定の根拠。What と Why。
+- `docs/TASK-TREE.md` — 現在地。階層タスクとステータス。
 - `CLAUDE.md`（このファイル）— ルールのみ。
 
 守ること:
 
-1. 実装に着手する前に `SPEC.md` の該当節を読む。
-2. 仕様が変わったら、コードより先に `SPEC.md` を直す。
-3. タスクの状態が変わったら、そのターンのうちに `TASK-TREE.md` を更新する。完了報告と同時に行う。
-4. `SPEC.md` に書かれていない判断を迫られたら、実装せずに確認する。推測で埋めない。
+1. 実装に着手する前に `docs/SPEC.md` の該当節を読む。
+2. 仕様が変わったら、コードより先に `docs/SPEC.md` を直す。
+3. タスクの状態が変わったら、そのターンのうちに `docs/TASK-TREE.md` を更新する。完了報告と同時に行う。
+4. `docs/SPEC.md` に書かれていない判断を迫られたら、実装せずに確認する。推測で埋めない。
 
 ## コマンド
 
@@ -43,7 +43,7 @@ yarn pack --dry-run            # 公開パッケージに何が入るかの確�
 - `NOCARE` は `any` のエイリアス。型推論を意図的に諦めている箇所の目印なので、`unknown` に置き換えようとしない。
 - コーススタイルは `basics` / `alternatives` / `goals` の3つ固定。増やす前に SPEC D-2 を読む。
 - コーディング規約は `.eslintrc.js` が持つ: インデント4スペース、ダブルクォート、セミコロン必須、改行 LF。プロパティの区切りカンマを行頭に置く既存スタイルに合わせる。
-- `README.md` は現行 API とズレている（`BaseScenario` / `MutableContext` は存在しない）。**README を仕様の根拠にしない**。正は `src/` と `SPEC.md`（→ TASK-TREE T-2）。
+- `README.md` は現行 API とズレている（`BaseScenario` / `MutableContext` は存在しない）。**README を仕様の根拠にしない**。正は `src/` と `docs/SPEC.md`（→ TASK-TREE T-2）。
 - `package.json` の `prepare` は `yarn build` を呼ぶ。publish 時にビルド漏れが起きない代わりに、`yarn install` がビルドを巻き込むことがある。
 - 公開は `v*` タグの push がトリガー（`.github/workflows/publish.yml`）。公開先は npm（→ SPEC D-6）。`package.json` の version 更新とタグ付けが公開操作にあたるので、指示なく行わない。
 - CI の publish 認証は `YARN_NPM_AUTH_TOKEN` に渡す `NPM_TOKEN` シークレット。Yarn 4 は npm の `.npmrc` を読まないので、`setup-node` の `registry-url` を足しても認証は通らない。
