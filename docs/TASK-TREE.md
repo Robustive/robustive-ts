@@ -57,6 +57,7 @@ GitHub Packages に v1.1.5 まで出していた実装に対して、検証・�
   - [x] T-6.9 バージョンを 1.2.0 に設定（2026-09-22）。1.0.0 への振り直しは既存タグ `v1.0.0` との衝突により却下 → SPEC D-15
   - [x] T-6.10 `master`（16コミット）と `v1.2.0` タグを push し、publish が発火。`@robustive/robustive-ts@1.2.0` の公開を確認
   - [x] T-6.11 公開物を検証: tarball の同梱物が想定どおり（dist / types / README / LICENSE / package.json）、`main` `module` `types` が正しく、実際に install して import した export 9件と `SwiftEnum` の動作を確認
+  - [x] T-6.12 GitHub Packages の旧パッケージ2件を削除（利用者が Web UI で実施、2026-09-22）。`@robustive/robustive-ts` と、当時 `--no-private` で一緒に公開されていた `@robustive/robustive-ts-express` → SPEC D-6
 
 - [x] **T-7** `delegate.authorize` が事実上必須になっている件を決着させる → SPEC D-12
   - [x] T-7.1 「未実装なら認可なしで通す」実装修正を選択（2026-09-20）→ SPEC D-12
@@ -82,7 +83,6 @@ GitHub Packages に v1.1.5 まで出していた実装に対して、検証・�
   - [ ] T-9.3 `CLAUDE.md` に「バージョンを上げるときは `CHANGELOG.md` も更新する」をリリース手順として追加する。ここを書かないと次回また忘れる
   - [ ] T-9.4 公開パッケージに同梱するかを決める（`package.json` の `files` は現在 `dist` と `types` のみ。README と LICENSE は npm が自動で入れるが、CHANGELOG は入らない）
 
-候補として残っているのは、GitHub Packages 側の旧パッケージの後始末（→ SPEC D-6 で廃止と決定済み、削除するか放置するかは未決）。
 
 ## 完了済み
 

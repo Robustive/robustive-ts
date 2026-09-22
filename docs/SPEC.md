@@ -157,6 +157,8 @@ DomainRequirements（利用側が宣言）
 - レジストリ指定: `.yarnrc.yml` で `npmRegistryServer` と `npmPublishRegistry` を `https://registry.npmjs.org` に明示する。Yarn 4 の既定は `registry.yarnpkg.com`（npm のミラー）で、指定しないと publish までそのミラー宛になる。
 - 認証: Yarn 4 は npm の `.npmrc` を読まないため、`setup-node` の `registry-url` では認証できない。CI は `YARN_NPM_AUTH_TOKEN` 環境変数に `NPM_TOKEN` シークレットを渡す。リポジトリ内の `.yarnrc.yml` にトークンを書かない。
 - 注意: publish はタグ push が引き金。バージョン更新とタグ付けは指示なく行わない。
+- GitHub Packages 側の後始末: 2026-09-22 に旧パッケージ2件（`@robustive/robustive-ts` v1.0.0〜v1.1.5、`@robustive/robustive-ts-express` v1.1.0〜v1.1.4）を削除した。express の方は、当時のワークフローが `--no-private` で全 workspace を publish していたため一緒に公開されていたもの。
+- **この決定はもう覆せない**: GitHub は削除したパッケージ名の再利用を許さないため、GitHub Packages へ戻す道は塞がっている。
 
 ### D-7: 再帰の終了条件は goals 到達または truthy な directive
 
