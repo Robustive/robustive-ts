@@ -17,7 +17,7 @@
 
 ## マイルストーン 1: 土台の立て直し
 
-v1.1.5 公開済みの実装に対して、検証・文書・構成の穴を塞ぐ。
+GitHub Packages に v1.1.5 まで出していた実装に対して、検証・文書・構成の穴を塞ぎ、npm へ移す。
 
 - [x] **T-1** テスト基盤を整備する → SPEC D-10, D-11
   - [x] T-1.1 Vitest に決定（ランタイムと型テストを1ツールで）。前提として vite 7 / @types/node 22 へ更新 → SPEC D-10, D-11
@@ -53,7 +53,9 @@ v1.1.5 公開済みの実装に対して、検証・文書・構成の穴を塞�
   - [x] T-6.5 `package.json` は `name` / `publishConfig.access: public` とも変更不要と確認。`yarn pack --dry-run` の同梱物も従来どおり
   - [x] T-6.6 README のインストール手順と、コード例4箇所の import パスを `@robustive/robustive-ts` に統一（T-2.3 もこれで解消）
   - [x] T-6.7 CLAUDE.md から `GITHUB_TOKEN` 前提の記述を削除し、公開先と CI 認証の記述を更新
-  - [!] T-6.8 npm 側の受け入れ準備 — **リポジトリ外の作業のため未完**: npm で `@robustive` org（スコープ）を作成し、publish 権限を持つ Automation トークンを発行して、GitHub リポジトリに `NPM_TOKEN` シークレットとして登録する。これが済むまでタグを push しても publish は失敗する
+  - [!] T-6.8 npm 側の受け入れ準備 — **リポジトリ外の作業のため未完**: npm で `@robustive` スコープ（org）を用意し、publish 権限を持つ Automation トークンを発行して、GitHub リポジトリに `NPM_TOKEN` シークレットとして登録する。これが済むまでタグを push しても publish は失敗する
+  - [x] T-6.9 バージョンを 1.2.0 に設定（2026-09-22）。1.0.0 への振り直しは既存タグ `v1.0.0` との衝突により却下 → SPEC D-15
+  - [ ] T-6.10 `v1.2.0` タグを打って push し、publish を発火させる。T-6.8 の完了後。`@robustive/robustive-ts` が npm 上に無いことは確認済み
 
 - [x] **T-7** `delegate.authorize` が事実上必須になっている件を決着させる → SPEC D-12
   - [x] T-7.1 「未実装なら認可なしで通す」実装修正を選択（2026-09-20）→ SPEC D-12
