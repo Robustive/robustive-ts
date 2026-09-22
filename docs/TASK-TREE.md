@@ -77,10 +77,14 @@ GitHub Packages に v1.1.5 まで出していた実装に対して、検証・�
 
 マイルストーン 1 は 2026-09-22 に完了（`@robustive/robustive-ts@1.2.0` を npm へ公開）。マイルストーン 2 として何を据えるかは未定だが、リリースに紐づく作業を先に積んである。
 
+- [x] **T-10** GitHub Release をワークフローで自動作成する → SPEC D-16
+  - [x] T-10.1 `publish.yml` に `gh release create` を追加し、`permissions` を `contents: write` に上げた
+  - [ ] T-10.2 `v1.2.0` の Release は手動で作る（タグ push 済みのため自動化は遡らない）— 利用者が Web UI で実施
 - [ ] **T-9** `CHANGELOG.md` を作る — **次にバージョンを上げるときに実施する**（2026-09-22 に依頼）
   - [ ] T-9.1 書式を決める。Keep a Changelog 準拠にするか、独自の簡易形式にするか。決めたら SPEC 4 に決定記録を足す
   - [ ] T-9.2 1.2.0 までを遡って書くかを決める。マイルストーン 1 の変更は大きく（単一パッケージ化、npm 移行、`authorize` の挙動変更）、内容は git log と `docs/SPEC.md` の決定記録から起こせる
   - [ ] T-9.3 `CLAUDE.md` に「バージョンを上げるときは `CHANGELOG.md` も更新する」をリリース手順として追加する。ここを書かないと次回また忘れる
+  - [ ] T-9.5 Release ノート（`--generate-notes` の自動生成）と CHANGELOG のどちらを正とするか決める → SPEC D-16
   - [ ] T-9.4 公開パッケージに同梱するかを決める（`package.json` の `files` は現在 `dist` と `types` のみ。README と LICENSE は npm が自動で入れるが、CHANGELOG は入らない）
 
 

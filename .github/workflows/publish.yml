@@ -6,7 +6,8 @@ on:
       - "v*"
 
 permissions:
-  contents: read
+  # Release の作成に write が要る（publish 自体は NPM_TOKEN で認証する）
+  contents: write
 
 jobs:
   publish:
@@ -31,3 +32,15 @@ jobs:
       - run: yarn npm publish
         env:
           YARN_NPM_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # タグを push しただけでは Release は作られないので、publish が通った後に作る。
+      # ノートは --generate-notes に任せる（前の Release 以降のコミットを GitHub が並べる）。
+      # gh は ubuntu-latest に同梱（→ docs/SPEC.md D-16）
+      - name: Create GitHub Release
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes \
+            --verify-tag
+        env:
+          GH_TOKEN: ${{ github.token }}
