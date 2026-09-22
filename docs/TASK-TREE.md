@@ -13,7 +13,7 @@
 
 ## 現在のフォーカス
 
-**T-6.8** — npm の org 作成と `NPM_TOKEN` 登録（リポジトリ外の作業）
+なし — マイルストーン 1 は完了。次の目標が未定
 
 ## マイルストーン 1: 土台の立て直し
 
@@ -45,7 +45,7 @@ GitHub Packages に v1.1.5 まで出していた実装に対して、検証・�
 - [x] **T-5** TypeScript を 5 系へ更新する → SPEC D-9
   - [x] T-5.1 `^4.6.2` → `^5.9.3`（実解決 4.9.5 → 5.9.3）。更新前の出力を退避して比較し、`dist/` は完全一致、`.d.ts` の差分は型エイリアスの保持のみで意味は不変と確認 → SPEC D-9
   - [x] T-5.2 eslint 8 / @typescript-eslint 5 のままで警告なく通ると確認。`parserOptions.project` 未使用のためバージョン警告も出ず、flat config 移行は不要だった
-- [~] **T-6** パッケージの公開先を GitHub Packages から npm へ移行する → SPEC 2.2, D-6
+- [x] **T-6** パッケージの公開先を GitHub Packages から npm へ移行する → SPEC 2.2, D-6, D-15
   - [x] T-6.1 パッケージ名は `@robustive/robustive-ts` のまま、npm 上で `@robustive` スコープを取得する方針に決定（2026-09-20）→ SPEC D-6
   - [x] T-6.2 GitHub Packages 版は廃止。並行公開しないと決定（2026-09-20）→ SPEC D-6
   - [x] T-6.3 `.yarnrc.yml` から GitHub Packages 向けの `npmScopes.robustive` を削除し、`npmRegistryServer` / `npmPublishRegistry` を npm 公式に明示。`GITHUB_TOKEN` 無しで `yarn` が動くようになった
@@ -53,9 +53,10 @@ GitHub Packages に v1.1.5 まで出していた実装に対して、検証・�
   - [x] T-6.5 `package.json` は `name` / `publishConfig.access: public` とも変更不要と確認。`yarn pack --dry-run` の同梱物も従来どおり
   - [x] T-6.6 README のインストール手順と、コード例4箇所の import パスを `@robustive/robustive-ts` に統一（T-2.3 もこれで解消）
   - [x] T-6.7 CLAUDE.md から `GITHUB_TOKEN` 前提の記述を削除し、公開先と CI 認証の記述を更新
-  - [!] T-6.8 npm 側の受け入れ準備 — **リポジトリ外の作業のため未完**: npm で `@robustive` スコープ（org）を用意し、publish 権限を持つ Automation トークンを発行して、GitHub リポジトリに `NPM_TOKEN` シークレットとして登録する。これが済むまでタグを push しても publish は失敗する
+  - [x] T-6.8 npm 側の受け入れ準備（利用者が実施、2026-09-22）: `@robustive` org の作成、Automation トークンの発行、GitHub への `NPM_TOKEN` 登録
   - [x] T-6.9 バージョンを 1.2.0 に設定（2026-09-22）。1.0.0 への振り直しは既存タグ `v1.0.0` との衝突により却下 → SPEC D-15
-  - [ ] T-6.10 `v1.2.0` タグを打って push し、publish を発火させる。T-6.8 の完了後。`@robustive/robustive-ts` が npm 上に無いことは確認済み
+  - [x] T-6.10 `master`（16コミット）と `v1.2.0` タグを push し、publish が発火。`@robustive/robustive-ts@1.2.0` の公開を確認
+  - [x] T-6.11 公開物を検証: tarball の同梱物が想定どおり（dist / types / README / LICENSE / package.json）、`main` `module` `types` が正しく、実際に install して import した export 9件と `SwiftEnum` の動作を確認
 
 - [x] **T-7** `delegate.authorize` が事実上必須になっている件を決着させる → SPEC D-12
   - [x] T-7.1 「未実装なら認可なしで通す」実装修正を選択（2026-09-20）→ SPEC D-12
@@ -73,7 +74,8 @@ GitHub Packages に v1.1.5 まで出していた実装に対して、検証・�
 
 ## マイルストーン 2: TBD
 
-T-1〜T-6 の決着後に定義する。
+マイルストーン 1 は 2026-09-22 に完了（`@robustive/robustive-ts@1.2.0` を npm へ公開）。次に何を据えるかは未定。
+候補として残っているのは、GitHub Packages 側の旧パッケージの後始末（→ SPEC D-6 で廃止と決定済み、削除するか放置するかは未決）。
 
 ## 完了済み
 
