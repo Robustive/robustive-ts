@@ -79,7 +79,8 @@ GitHub Packages に v1.1.5 まで出していた実装に対して、検証・�
 
 - [x] **T-10** GitHub Release をワークフローで自動作成する → SPEC D-16
   - [x] T-10.1 `publish.yml` に `gh release create` を追加し、`permissions` を `contents: write` に上げた
-  - [ ] T-10.2 `v1.2.0` の Release は手動で作る（タグ push 済みのため自動化は遡らない）— 利用者が Web UI で実施
+  - [x] T-10.2 `v1.2.0` の Release を手動作成（利用者が Web UI で実施、2026-09-22）。タグ push 済みのため自動化は遡らなかった。API で Latest が `v1.2.0` になったことを確認済み
+  - [ ] T-10.3 次にタグを push したとき、Release が自動で作られるかを実地で確認する（未検証。CI 上でしか動かないため）
 - [ ] **T-9** `CHANGELOG.md` を作る — **次にバージョンを上げるときに実施する**（2026-09-22 に依頼）
   - [ ] T-9.1 書式を決める。Keep a Changelog 準拠にするか、独自の簡易形式にするか。決めたら SPEC 4 に決定記録を足す
   - [ ] T-9.2 1.2.0 までを遡って書くかを決める。マイルストーン 1 の変更は大きく（単一パッケージ化、npm 移行、`authorize` の挙動変更）、内容は git log と `docs/SPEC.md` の決定記録から起こせる
